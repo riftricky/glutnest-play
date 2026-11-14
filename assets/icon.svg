@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="sky" cx="50%" cy="39%" r="65%">
+      <stop stop-color="#633652"/>
+      <stop offset="1" stop-color="#211429"/>
+    </radialGradient>
+    <linearGradient id="flame" x2=".3" y2="1" gradientUnits="objectBoundingBox">
+      <stop stop-color="#ffe0a3"/>
+      <stop offset="1" stop-color="#e9856b"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#sky)" d="M0 0h512v512H0z"/>
+  <circle cx="256" cy="256" r="168" fill="none" stroke="#dfa88a" stroke-opacity=".38" stroke-width="3"/>
+  <path fill="#e9bc88" d="M363 149q2 17 18 19-16 3-18 19-3-16-19-19 16-2 19-19zm-200 42q2 10 12 12-10 2-12 12-2-10-12-12 10-2 12-12z"/>
+  <path fill="url(#flame)" d="M256 150c10 47 76 70 76 126 0 42-31 70-76 70s-76-28-76-70c0-30 17-54 41-74 1 16 7 25 15 28 20-23 26-50 20-80z"/>
+  <path fill="#ffedb2" d="M258 249c7 20 34 31 34 53 0 20-15 31-36 31s-35-12-35-29c0-13 8-24 18-33 2 8 7 11 10 11 8-10 12-23 9-33z"/>
+  <path fill="#3a213b" stroke="#db987e" stroke-linejoin="round" stroke-width="8" d="M138 316q28 5 49 20 33-7 69 10 35-17 69-10 21-15 49-20-16 35-47 56-31 21-71 21t-71-21q-31-21-47-56z"/>
+  <path fill="none" stroke="#dfa88a" stroke-linecap="round" stroke-opacity=".78" stroke-width="5" d="M166 348q31 17 68 18m112-18q-31 17-68 18m-74 10q52 16 104 0"/>
+</svg>

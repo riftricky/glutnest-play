@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#18131d">
+  <meta name="description" content="Ein kleiner Drache, ein warmes Nest und ein bisschen Magie für jeden Tag.">
+  <title>Glutnest · Ein kleines Drachenspiel</title>
+  <link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./app.mjs"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Zum Spiel</a>
+  <header class="top"><div class="bar wrap">
+    <a class="brand" href="#nest"><span class="brand-mark" data-icon="flame"></span><span><b>Glutnest</b><small>DEIN KLEINES DRACHENSPIEL</small></span></a>
+    <nav class="nav" aria-label="Spielbereiche">
+      <a href="#nest" data-page="nest"><span data-icon="home"></span>Nest</a>
+      <a href="#garten" data-page="garten"><span data-icon="gem"></span>Kristallgarten</a>
+      <a href="#nestbuch" data-page="nestbuch"><span data-icon="book"></span>Nestbuch<span id="nav-story-count" class="story-count" hidden></span></a>
+      <a href="#sammlung" data-page="sammlung"><span data-icon="bag"></span>Sammlung</a>
+    </nav>
+    <div class="tools"><span class="wallet" title="Glutsterne" aria-label="Glutsterne"><span data-icon="sparkles"></span><b id="wallet">0</b></span><button id="settings" class="icon-button" type="button" aria-label="Einstellungen" data-icon="gear"></button></div>
+  </div></header>
+
+  <main id="main" class="wrap" tabindex="-1">
+    <section id="view-nest" class="view" aria-labelledby="nest-title">
+      <div class="intro">
+        <div class="eyebrow"><span data-icon="sparkles"></span> DEIN ZUHAUSE IM FLÜSTERWALD</div>
+        <h1 id="nest-title" tabindex="-1">Willkommen im <em>Glutnest.</em></h1>
+        <p>Ein kleines Wesen. Ein warmes Nest. Und jeden Tag ein bisschen Magie.</p>
+      </div>
+      <div class="nest-layout">
+        <div class="left-stack">
+          <figure class="scene" id="scene" aria-label="Fünkchens Nest">
+            <div class="scene-bg"></div><div class="scene-light"></div>
+            <div class="scene-top"><span class="scene-tag"><i></i> DAS WALDNEST</span><span class="scene-tag quiet" id="scene-time"></span></div>
+            <div class="embers" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="den-decor" id="den-decor" aria-hidden="true"></div>
+            <div class="pet-track"><button class="pet" id="pet" type="button" aria-label="Fünkchen streicheln"><span class="pet-sprite" aria-hidden="true"></span></button><span class="pet-reaction" id="pet-reaction" aria-hidden="true"></span></div>
+            <button type="button" class="scene-pet-label" id="pet-label"><span data-icon="heart"></span> Streicheln</button>
+            <div id="scene-keepsake" class="scene-keepsake" hidden></div>
+            <div id="scene-companion" class="scene-companion" aria-hidden="true"></div>
+            <figcaption><div class="scene-portrait" data-icon="flame"></div><div><strong id="scene-name">Fünkchen</strong><small>DEIN DRACHENFREUND</small></div></figcaption>
+          </figure>
+          <a class="quest panel" href="#garten">
+            <span class="quest-icon" data-icon="gem"></span>
+            <span class="quest-text"><small id="quest-kicker">DEIN NÄCHSTES ABENTEUER</small><strong id="quest-title">Auf in den Kristallgarten!</strong><span id="quest-detail">Kombiniere Kristalle und sammle Glutsterne fürs Nest.</span></span>
+            <span class="quest-arrow" data-icon="arrow"></span>
+          </a>
+        </div>
+        <div class="right-stack">
+          <section class="panel care-panel" aria-labelledby="care-title">
+            <div class="eyebrow">KLEINER GEFÄHRTE</div>
+            <div class="care-head"><h2 id="care-title">Fünkchen</h2><span class="level" id="level"></span></div>
+            <p class="mood" id="mood"></p>
+            <div class="bond-track" id="xp-progress" role="progressbar" aria-label="Fortschritt zur nächsten Stufe" aria-valuemin="0" aria-valuemax="100"><span id="xp-fill"></span></div>
+            <div class="stats" id="stats"></div>
+            <div class="care-divider"></div>
+            <div class="care-actions" id="care-actions" aria-label="Drachenpflege"></div>
+          </section>
+          <a class="quest panel story-nest-link" href="#nestbuch"><span class="quest-icon" data-icon="book"></span><span class="quest-text"><strong id="nest-book-title">Das Nestbuch</strong><span id="nest-book-detail">Hier sammelt Fünkchen seine Erinnerungen.</span></span><span class="quest-arrow" data-icon="arrow"></span></a>
+          <section class="panel egg-panel" aria-labelledby="egg-title">
+            <span id="egg-icon" class="egg-icon" data-icon="egg"></span><div class="egg-copy"><h2 id="egg-title">Ein kleines Geheimnis</h2><p id="egg-description">Tief im Garten wartet ein Drachenei auf dich.</p><button class="small-button" id="egg-action" type="button" hidden>Ei wärmen</button></div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-garten" class="view" aria-labelledby="garden-title" hidden>
+      <div class="intro"><div class="eyebrow"><span data-icon="gem"></span> MATCH-3 IM FLÜSTERWALD</div><h1 id="garden-title" tabindex="-1">Der <em>Kristallgarten.</em></h1><p>Tausche zwei Nachbarn und bring drei gleiche Kristalle in eine Reihe.</p></div>
+      <div class="garden-layout">
+        <section class="panel missions" aria-labelledby="mission-title"><div class="eyebrow">DER WALDPFAD</div><h2 id="mission-title">Abenteuer</h2><div id="mission-list"></div><details class="special-guide"><summary>Spezialkristalle</summary><p>Vier gleiche Kristalle in einer Linie ergeben einen <strong>Funkenstrahl</strong>. Fünf in einer Linie oder eine T- oder L-Form ergeben einen <strong>Sternenfunken</strong>.</p><p>Kombiniere den markierten Kristall erneut. Der Strahl räumt eine ganze Linie, der Sternenfunke ein Feld von 3 × 3.</p></details></section>
+        <section class="panel play-panel" aria-labelledby="round-title">
+          <div id="board-empty" class="board-empty"><div class="empty-gem" data-icon="gem"></div><h2 id="round-title">Das Glutfeld wartet.</h2><p>Hier beginnt deine Schatzsuche. Beim ersten Spiel zeigt dir ein goldener Schimmer einen möglichen Zug.</p><button id="first-round" class="primary" type="button">Glutfeld spielen <span data-icon="arrow"></span></button></div>
+          <div id="round" hidden>
+            <div class="round-heading"><div><div class="eyebrow">AKTUELLES SPIEL</div><h2 id="active-round-title" tabindex="-1"></h2></div><div class="moves"><strong id="moves-left"></strong><small>ZÜGE ÜBRIG</small></div></div>
+            <div id="round-goals" class="round-goals"></div>
+            <div id="board" class="board" role="grid" aria-label="Kristallspielfeld" aria-describedby="board-instructions"></div>
+            <p id="board-instructions" class="sr-only">Wähle mit Pfeiltasten ein Feld und mit Eingabe oder Leertaste einen Kristall. Wähle danach einen Nachbarn. Escape hebt die Auswahl auf.</p>
+            <div id="round-result" class="round-result" hidden></div>
+            <div class="round-footer"><p id="board-help">Tippe nacheinander auf zwei benachbarte Kristalle.</p><button type="button" class="small-button" id="hint" data-label="Tipp"><span data-icon="sparkles"></span> Tipp</button></div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section id="view-nestbuch" class="view" aria-labelledby="book-title" hidden>
+      <div class="book-hero panel">
+        <div class="book-intro">
+          <h1 id="book-title" tabindex="-1">Das <em>Nestbuch.</em></h1>
+          <p>Was Fünkchen im Nest und im Kristallgarten erlebt, wird hier zur Geschichte. Du entscheidest, wie sie ausgeht.</p>
+          <span id="book-progress" class="book-progress"></span>
+        </div>
+      </div>
+      <div id="book-feature" class="book-feature panel"></div>
+      <div id="story-list" class="story-list" aria-label="Geschichten"></div>
+    </section>
+
+    <section id="view-sammlung" class="view" aria-labelledby="collection-title" hidden>
+      <div class="intro"><div class="eyebrow"><span data-icon="bag"></span> EIN NEST GANZ NACH DEINEM GESCHMACK</div><h1 id="collection-title" tabindex="-1">Deine <em>Sammlung.</em></h1><p>Tausche Glutsterne gegen kleine Schätze für dein Drachennest.</p></div>
+      <div id="shop" class="shop"></div>
+    </section>
+    <footer aria-hidden="true"><span data-icon="sparkles"></span></footer>
+  </main>
+
+  <dialog id="story-dialog" class="panel story-dialog" aria-labelledby="story-title" aria-describedby="story-body">
+    <div id="story-dialog-art" class="story-dialog-art" aria-hidden="true"></div>
+    <div class="story-dialog-content">
+      <div class="dialog-head"><h2 id="story-title" tabindex="-1"></h2><button class="icon-button" id="close-story" type="button" aria-label="Geschichte schließen" data-icon="x"></button></div>
+      <p id="story-body"></p>
+      <p id="story-ending" tabindex="-1" hidden></p>
+      <div id="story-keepsake" class="story-keepsake" hidden></div>
+      <div id="story-choices" class="story-choices"></div>
+      <button class="small-button" id="story-display" type="button" hidden>Im Nest zeigen</button>
+    </div>
+  </dialog>
+  <dialog id="settings-dialog" class="panel settings-dialog" aria-labelledby="settings-title">
+    <form id="settings-form">
+      <div class="dialog-head"><div><div class="eyebrow">DEIN GLUTNEST</div><h2 id="settings-title">Einstellungen</h2></div><button class="icon-button" id="close-settings" type="button" aria-label="Schließen" data-icon="x"></button></div>
+      <label for="dragon-name">Name deines Drachen</label><input id="dragon-name" name="dragon-name" maxlength="40" required autocomplete="off">
+      <label class="checkbox"><input type="checkbox" id="motion-option"> Ruhige Ansicht (weniger Bewegung)</label>
+      <p class="settings-note" id="save-note">Dein Spielstand bleibt in diesem Browser. Über eine Sicherung kannst du ihn auf ein anderes Gerät mitnehmen.</p>
+      <div class="backup-actions"><button class="small-button" id="export-save" type="button">Sicherung herunterladen</button><button class="small-button" id="import-save" type="button">Sicherung einspielen</button><input type="file" id="save-file" accept=".json,application/json" hidden></div>
+      <p class="settings-note" id="settings-status" role="status"></p>
+      <div class="dialog-actions"><button class="primary" type="submit">Speichern</button></div>
+    </form>
+  </dialog>
+  <dialog id="confirm-dialog" class="panel settings-dialog" aria-labelledby="confirm-title">
+    <form method="dialog"><h2 id="confirm-title"></h2><p id="confirm-copy"></p><div class="dialog-actions"><button class="small-button" value="cancel" autofocus>Abbrechen</button><button class="primary" value="accept" id="confirm-action">Bestätigen</button></div></form>
+  </dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+  <noscript><p class="noscript">Bitte aktiviere JavaScript, damit dein kleiner Drache einziehen kann.</p></noscript>
+</body>
+</html>
