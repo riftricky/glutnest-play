@@ -287,3 +287,75 @@ html[data-quiet=true] *,html[data-quiet=true] *::before,html[data-quiet=true] *:
 @media(max-width:500px){.guide-card{grid-template-columns:43px minmax(0,1fr);gap:9px;padding:11px}.guide-portrait{width:43px;border-radius:10px}.guide-actions{gap:5px}.guide-actions .small-button{padding-inline:7px}}
 .guide-action-marked{outline:2px solid #ffe0a0;outline-offset:2px}
 .guide-action-marked:focus-visible{outline:2px dashed #fff6d0}
+.hatch-scene {
+  display: none;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.scene-companion[data-stage="hatching"] .scene-egg-sprite {
+  visibility: hidden;
+}
+.scene-companion[data-stage="hatching"] .hatch-scene {
+  display: block;
+}
+.scene-egg-button[aria-disabled="true"] {
+  cursor: wait;
+}
+.hatch-shell, .hatchling {
+  position: absolute;
+  inset: 0;
+  background: url(./assets/dragon-egg.webp) center / contain no-repeat;
+}
+.hatch-shell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url(./assets/egg-cracks.svg) center / contain no-repeat;
+}
+/* Split the existing shell along the painted crack and keep its moss fixed. */
+.hatch-left {
+  z-index: 2;
+  clip-path: polygon(0 0, 41% 0, 40% 27%, 45% 35%, 43% 41%, 51% 46%, 49% 53%, 44% 59%, 36% 57%, 31% 63%, 0 60%);
+  transform-origin: 30% 58%;
+  animation: hatch-left 1.6s ease-in-out both;
+}
+.hatch-right {
+  z-index: 2;
+  clip-path: polygon(41% 0, 100% 0, 100% 70%, 63% 70%, 62% 62%, 56% 57%, 49% 53%, 51% 46%, 43% 41%, 45% 35%, 40% 27%);
+  transform-origin: 72% 65%;
+  animation: hatch-right 1.6s ease-in-out both;
+}
+.hatch-base {
+  z-index: 4;
+  clip-path: polygon(0 60%, 31% 63%, 36% 57%, 44% 59%, 49% 53%, 56% 57%, 62% 62%, 63% 70%, 100% 70%, 100% 100%, 0 100%);
+  animation: hatch-base 1.6s ease-in-out both;
+}
+.hatchling {
+  z-index: 3;
+  background: url(./assets/dragon-awake.webp) center 63% / 90% no-repeat;
+  filter: hue-rotate(318deg) drop-shadow(0 3px 4px #160f20aa);
+  transform-origin: 50% 86%;
+  animation: hatchling-rise 1.6s ease-out both;
+}
+@keyframes hatch-left {
+  0%, 18% { transform: none; opacity: 1; }
+  27% { transform: translateX(-2%) rotate(-4deg); }
+  57%, 78% { transform: translate(-18%, 15%) rotate(-32deg); opacity: 1; }
+  100% { transform: translate(-21%, 25%) rotate(-38deg); opacity: 0; }
+}
+@keyframes hatch-right {
+  0%, 18% { transform: none; opacity: 1; }
+  27% { transform: translateX(2%) rotate(4deg); }
+  57%, 78% { transform: translate(18%, 12%) rotate(38deg); opacity: 1; }
+  100% { transform: translate(23%, 22%) rotate(45deg); opacity: 0; }
+}
+@keyframes hatch-base {
+  0%, 76% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes hatchling-rise {
+  0%, 33% { opacity: 0; transform: translateY(18%) scale(.62); }
+  52% { opacity: 1; transform: translateY(4%) scale(.81); }
+  78%, 100% { opacity: 1; transform: none; }
+}

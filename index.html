@@ -10,8 +10,8 @@
   <link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="stylesheet" href="./style.css?v=egg-in-moss">
-  <script type="module" src="./app.mjs?v=egg-in-moss"></script>
+  <link rel="stylesheet" href="./style.css?v=schlupf">
+  <script type="module" src="./app.mjs?v=schlupf"></script>
 </head>
 <body>
   <a class="skip" href="#main">Zum Spiel</a>
@@ -47,6 +47,12 @@
             <div id="scene-companion" class="scene-companion" hidden>
               <button id="scene-egg-button" class="scene-egg-button" type="button" aria-label="Drachenei wärmen" aria-describedby="egg-description" hidden>
                 <span class="scene-egg-sprite" aria-hidden="true"></span>
+                <span class="hatch-scene" aria-hidden="true">
+                  <span class="hatch-shell hatch-left"></span>
+                  <span class="hatch-shell hatch-right"></span>
+                  <span class="hatchling"></span>
+                  <span class="hatch-shell hatch-base"></span>
+                </span>
               </button>
             </div>
             <figcaption><div class="scene-portrait" data-icon="flame"></div><div><strong id="scene-name">Fünkchen</strong><small>DEIN DRACHENFREUND</small></div></figcaption>

@@ -415,6 +415,8 @@ $('guide-replay').addEventListener('click', () => {
   else renderGuide(true)
 })
 
+let hatchTransition = null
+
 function renderNest() {
   const now = Date.now()
   const level = getLevel(state)
@@ -447,11 +449,16 @@ function renderNest() {
   $('quest-kicker').textContent = active ? 'DEIN OFFENES SPIEL' : 'DEIN NÄCHSTES ABENTEUER'
   $('quest-title').textContent = active ? active.label + ' fortsetzen' : !next ? 'Zurück in den Kristallgarten' : next === MISSIONS[0] ? 'Auf in den Kristallgarten!' : next.label + ' entdecken'
   $('quest-detail').textContent = active ? 'Du hast noch ' + state.round.movesLeft + ' Züge für diese Runde.' : next === MISSIONS[0] ? 'Kombiniere Kristalle und sammle Glutsterne fürs Nest.' : next ? next.description : 'Spiele deine Lieblingsrunde noch einmal und sammle Glutsterne.'
-  const stage = state.egg.stage
-  $('egg-title').textContent = stage === 'locked' ? 'Ein kleines Geheimnis' : stage === 'egg' ? 'Ein warmes Drachenei' : 'Hallo, Knöpfchen!'
-  $('egg-description').textContent = stage === 'locked' ? 'Tief im Garten wartet ein Drachenei auf dich.' : stage === 'egg' ? ['Das Ei liegt im Moos. Tippe es an, um es zu wärmen.', 'Ein feiner Riss ist zu sehen. Wärme das Ei noch zweimal.', 'Die Schale knackt. Wärme das Ei noch einmal.'][state.egg.warmth] : 'Der kleine Drache ist geschlüpft und wohnt jetzt mit im Nest.'
+  const stage = hatchTransition ? 'hatching' : state.egg.stage
+  const hatching = stage === 'hatching'
+  $('egg-title').textContent = stage === 'locked' ? 'Ein kleines Geheimnis' : hatching ? 'Die Schale bricht auf!' : stage === 'egg' ? 'Ein warmes Drachenei' : 'Hallo, Knöpfchen!'
+  $('egg-description').textContent = stage === 'locked' ? 'Tief im Garten wartet ein Drachenei auf dich.' : hatching ? 'Unter der Schale bewegt sich etwas.' : stage === 'egg' ? ['Das Ei liegt im Moos. Tippe es an, um es zu wärmen.', 'Ein feiner Riss ist zu sehen. Wärme das Ei noch zweimal.', 'Die Schale knackt. Wärme das Ei noch einmal.'][state.egg.warmth] : 'Der kleine Drache ist geschlüpft und wohnt jetzt mit im Nest.'
   $('egg-action').hidden = stage === 'locked'
-  $('egg-action').textContent = stage === 'hatched' ? 'Knöpfchen begrüßen' : 'Ei wärmen'
+  $('egg-action').textContent = hatching ? 'Knöpfchen schlüpft …' : stage === 'hatched' ? 'Knöpfchen begrüßen' : 'Ei wärmen'
+  for (const id of ['egg-action', 'scene-egg-button']) {
+    if (hatching) $(id).setAttribute('aria-disabled', 'true')
+    else $(id).removeAttribute('aria-disabled')
+  }
   const souvenir = keepsake && storyMap.get(keepsake)?.reward
   $('scene-keepsake').hidden = !souvenir
   $('scene-keepsake').textContent = souvenir ? souvenir.symbol + ' ' + souvenir.title : ''
@@ -464,11 +471,11 @@ function renderNest() {
     const sceneButton = $('scene-egg-button')
     sceneButton.hidden = stage === 'locked'
     sceneButton.classList.remove('is-warming')
-    sceneButton.setAttribute('aria-label', stage === 'hatched' ? 'Knöpfchen begrüßen' : 'Drachenei wärmen')
-    $('egg-icon').classList.toggle('is-real-egg', stage === 'egg')
+    sceneButton.setAttribute('aria-label', hatching ? 'Knöpfchen schlüpft' : stage === 'hatched' ? 'Knöpfchen begrüßen' : 'Drachenei wärmen')
+    $('egg-icon').classList.toggle('is-real-egg', hatching || stage === 'egg')
     $('egg-icon').innerHTML = icon(stage === 'hatched' ? 'heart' : 'egg')
   }
-  comp.dataset.warmth = String(state.egg.warmth)
+  comp.dataset.warmth = String(hatching ? 2 : state.egg.warmth)
   $('egg-icon').dataset.warmth = comp.dataset.warmth
   if ($('den-decor').dataset.items !== state.equipped.join(',')) {
     $('den-decor').dataset.items = state.equipped.join(',')
@@ -611,6 +618,7 @@ function route(focusHeading = false) {
     if (id === page) nav.setAttribute('aria-current','page')
     else nav.removeAttribute('aria-current')
   }
+  if (page !== 'nest') endHatch(false)
   if (page === 'nest') renderNest()
   if (page === 'garten') renderGarden()
   if (page === 'nestbuch') renderBook()
@@ -799,7 +807,21 @@ $('shop').addEventListener('click', event => {
   const newStory = result.ok && state.equipped.includes(id) && storyEvent({ type:'decorate', id })
   persist(); wallet(); renderShop(); tell(storyMessage(result.message, newStory))
 })
+function endHatch(announce = true) {
+  if (!hatchTransition) return
+  const { timer, message } = hatchTransition
+  clearTimeout(timer)
+  hatchTransition = null
+  if (page === 'nest') renderNest()
+  if (announce) tell(message)
+}
+
+$('scene-companion').addEventListener('animationend', event => {
+  if (event.animationName === 'hatch-base') endHatch()
+})
+
 function interactWithEgg(event) {
+  if (hatchTransition) return
   const inScene = event.currentTarget === $('scene-egg-button')
   if (state.egg.stage === 'hatched') {
     const baby = $('scene-companion')
@@ -814,7 +836,18 @@ function interactWithEgg(event) {
   const result = careForEgg(state)
   state = result.state
   const newStory = result.ok && state.egg.stage === 'hatched' && storyEvent({ type:'hatch' })
-  persist(); renderNest()
+  persist()
+  const message = storyMessage(result.message, newStory)
+  if (state.egg.stage === 'hatched' && !settings.quiet && !reduceMotion.matches) {
+    hatchTransition = { message, timer:setTimeout(endHatch, 1800) }
+    renderNest()
+    if (!inScene) {
+      $('scene').scrollIntoView({ block:'nearest' })
+      $('scene-egg-button').focus({ preventScroll:true })
+    }
+    return
+  }
+  renderNest()
   if (result.ok && state.egg.stage === 'egg') {
     const button = $('scene-egg-button')
     button.classList.remove('is-warming')
@@ -825,7 +858,7 @@ function interactWithEgg(event) {
     $('egg-title').tabIndex = -1
     $('egg-title').focus()
   }
-  tell(storyMessage(result.message, newStory))
+  tell(message)
 }
 $('egg-action').addEventListener('click', interactWithEgg)
 $('scene-egg-button').addEventListener('click', interactWithEgg)
@@ -852,6 +885,7 @@ $('settings-form').addEventListener('submit', event => {
   document.documentElement.dataset.quiet = String(settings.quiet)
   store(settingsKey, settings)
   persist()
+  if (settings.quiet) endHatch()
   if (page === 'nest') renderNest()
   $('settings-dialog').close()
   tell(renamed ? result.message : 'Einstellungen gespeichert.')
@@ -876,6 +910,7 @@ $('save-file').addEventListener('change', async () => {
     if (data?.type !== 'glutnest-save' || data?.state?.version !== 1 || typeof data.state.name !== 'string' || !data.state.needs) throw new Error()
   } catch { $('settings-status').textContent = 'Diese Datei ist keine gültige Glutnest-Sicherung.'; return }
   if (playingAnimation || !await confirm('Spielstand einspielen?', 'Die Sicherung ersetzt den Spielstand in diesem Browser.', 'Einspielen')) return
+  endHatch(false)
   readProgress(data.state)
   setGuide({ type:'skip' })
   settings.quiet = data.settings?.quiet === true
@@ -895,6 +930,7 @@ function absorbOtherTab() {
   if (playingAnimation || document.hidden) return
   const other = load(key)
   if (!other) return
+  if (other.egg?.stage !== 'hatched') endHatch(false)
   readProgress(other)
   selection = null; hinted = []
   wallet(); renderBookLink(); route()
@@ -911,11 +947,12 @@ addEventListener('storage', event => {
   tabRefreshTimer = setTimeout(absorbOtherTab, 420)
 })
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) return
+  if (document.hidden) { endHatch(false); return }
   absorbOtherTab()
   refreshCare()
 })
 setInterval(() => { if (!document.hidden) refreshCare() }, 15000)
+reduceMotion.addEventListener('change', () => { if (reduceMotion.matches) endHatch() })
 addEventListener('hashchange', () => route(true))
 fillIcons()
 initializeCare()
