@@ -1,18 +1,18 @@
 const scope = new URL(self.registration.scope);
 const cachePrefix = `glutnest:${scope.pathname}:`;
-const cacheName = `${cachePrefix}v10`;
+const cacheName = `${cachePrefix}v11`;
 const appHome = new URL('./index.html', scope);
 const shellFiles = [
   './index.html',
-  './style.css?v=waldnest',
-  './app.mjs?v=waldnest',
+  './style.css?v=waldnest-2',
+  './app.mjs?v=waldnest-2',
   './game.mjs',
-  './game.mjs?v=waldnest',
+  './game.mjs?v=waldnest-2',
   './stories.mjs?v=lebendiges-nest',
   './reward.mjs',
   './companion.mjs',
   './finds.mjs',
-  './postcard.mjs?v=waldnest',
+  './postcard.mjs?v=waldnest-2',
   './decor.mjs',
   './lantern.mjs',
   './assets/star-lantern.webp',
@@ -25,7 +25,7 @@ const shellFiles = [
   './assets/star-mobile.webp',
   './assets/cloud-blanket.webp',
   './assets/comet-rug.webp',
-  './guide.mjs?v=waldnest',
+  './guide.mjs?v=waldnest-2',
   './assets/nestbuch.webp',
   './manifest.webmanifest',
   './assets/nest.webp',

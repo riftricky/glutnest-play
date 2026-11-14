@@ -31,7 +31,7 @@ export const NEST_FURNISHINGS = [
     baby:'Knöpfchen neigt den Kopf zu den Blüten.',
   },
   {
-    id:'star-mobile', asset:'assets/star-mobile.webp', x:.34, y:.24, width:.20, layer:'prop',
+    id:'star-mobile', asset:'assets/star-mobile.webp', x:.62, y:.22, width:.20, layer:'prop',
     action:'Sternenmobile anstoßen',
     adult:'{name} hebt den Kopf und schaut den schaukelnden Sternen nach.',
     baby:'Knöpfchen streckt die Vorderpfoten zu den Sternen hoch.',

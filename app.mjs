@@ -2,14 +2,14 @@ import {
   BOARD_SIZE, CARE, MISSIONS, SHOP, SPECIALS, TILES, buyItem, care, careForEgg,
   getHint, getLevel, getMood, isMissionUnlocked, normalizeState,
   playMove, renameDragon, startRound, tick, toggleItem,
-} from './game.mjs?v=waldnest'
-import { GUIDE_KEY, beginGuide, guideEvent, nestJourney, normalizeGuide } from './guide.mjs?v=waldnest'
+} from './game.mjs?v=waldnest-2'
+import { GUIDE_KEY, beginGuide, guideEvent, nestJourney, normalizeGuide } from './guide.mjs?v=waldnest-2'
 import { STORIES, chooseStory, normalizeStories, recordStoryEvent, storyStatus } from './stories.mjs?v=lebendiges-nest'
 import { FIRST_REWARD_ID, firstRewardAction, rewardItemAction } from './reward.mjs'
 import { companionReaction } from './companion.mjs'
 import { NEST_FURNISHINGS, nestFurnishing } from './decor.mjs'
 import { FIND_ITEMS, displayedFind, normalizeFinds, recordGardenFind, setDisplayedFind } from './finds.mjs'
-import { renderPostcard, canSharePostcard, sharePostcard } from './postcard.mjs?v=waldnest'
+import { renderPostcard, canSharePostcard, sharePostcard } from './postcard.mjs?v=waldnest-2'
 import { LANTERN_LIGHTS, normalizeLantern, beginLanternRound, recordLanternMove, lanternStatus, selectLanternLight, availableLanternLights, selectedLanternLight } from './lantern.mjs'
 import { MASTERY_GOALS, normalizeMastery, beginMasteryRound, recordMasteryMove, masteryStatus } from './mastery.mjs'
 
@@ -534,14 +534,12 @@ function renderNest() {
   renderFurnishings()
 }
 function renderFurnishings() {
-  const scene = $('scene')
   const decor = $('den-decor')
   const equipped = NEST_FURNISHINGS.filter(item => state.equipped.includes(item.id))
   const signature = equipped.map(item => item.id).join(',')
   if (decor.dataset.items === signature) return
   clearFurnishingReaction()
   decor.dataset.items = signature
-  scene.dataset.furnishings = equipped.map(item => item.id).join(' ')
   decor.replaceChildren(...equipped.map(item => {
     const prop = element('div', '', 'den-prop')
     prop.dataset.furnishing = item.id
@@ -1405,9 +1403,9 @@ $('scene-companion').addEventListener('animationend', event => {
 function interactWithEgg(event) {
   if (hatchTransition) return
   const inScene = event.currentTarget === $('scene-egg-button')
+  clearFurnishingReaction()
   if (state.egg.stage === 'hatched') {
     const baby = $('scene-companion')
-    clearFurnishingReaction()
     clearFindReaction()
     clearLanternReaction()
     const reaction = companionReaction(state, companionPlays++)

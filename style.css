@@ -792,7 +792,7 @@ html[data-quiet=true] *,html[data-quiet=true] *::before,html[data-quiet=true] *:
   left: var(--hit-x, var(--decor-x));
   top: var(--hit-y, var(--decor-top, var(--decor-y)));
   width: max(44px, var(--hit-width, var(--decor-width)));
-  height: max(44px, var(--hit-height, 15%));
+  height: max(44px, 15%);
   border: 0;
   border-radius: 22%;
   padding: 0;
@@ -853,7 +853,7 @@ html[data-quiet=true] *,html[data-quiet=true] *::before,html[data-quiet=true] *:
   70% { transform: translate(2%, -4%) rotate(-3deg); }
 }
 @media (max-width: 665px) {
-  .den-prop[data-furnishing="star-mobile"] { --decor-top: max(67px, var(--decor-y)); }
+  .den-prop[data-furnishing="star-mobile"] { --decor-top: max(57px, var(--decor-y)); }
 }
 .shop-note { margin: 14px 2px 10px; color: var(--muted); font-size: 13px; line-height: 1.45; }
 .shop-slot { display: block; margin-top: 4px; color: var(--peach); font-size: 11px; font-weight: 680; }
