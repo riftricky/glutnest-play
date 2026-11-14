@@ -1,11 +1,11 @@
 const scope = new URL(self.registration.scope);
 const cachePrefix = `glutnest:${scope.pathname}:`;
-const cacheName = `${cachePrefix}v4`;
+const cacheName = `${cachePrefix}v5`;
 const appHome = new URL('./index.html', scope);
 const shellFiles = [
   './index.html',
-  './style.css',
-  './app.mjs',
+  './style.css?v=egg-in-moss',
+  './app.mjs?v=egg-in-moss',
   './game.mjs',
   './stories.mjs',
   './guide.mjs',
