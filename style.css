@@ -80,9 +80,22 @@ h1 em{color:var(--peach);font-weight:400}
 .den-item{position:absolute;display:grid;place-items:center;color:#fcd2b4;filter:drop-shadow(0 5px 6px #1a101a);background:#35243bc2;border:1px solid #f6c1a868;border-radius:50%;width:clamp(33px,8%,58px);aspect-ratio:1;animation:breathe 5s ease-in-out infinite}
 .den-item .icon{width:55%;height:55%}
 .den-item:nth-child(1){bottom:21%;left:19%}.den-item:nth-child(2){bottom:23%;right:14%}.den-item:nth-child(3){top:28%;right:19%}.den-item:nth-child(4){top:25%;left:23%}
-.scene-companion{position:absolute;z-index:4;bottom:23%;right:17%;width:18%;aspect-ratio:1;pointer-events:none}
-.scene-companion .icon{height:68%;width:68%;color:#ffcdaf;filter:drop-shadow(0 0 14px #ffae87);margin:16%;animation:breathe 3.2s infinite}
-.scene-companion.baby{background:url(./assets/dragon-awake.webp) center/contain no-repeat;filter:hue-rotate(318deg) drop-shadow(0 6px 5px #140b23);animation:hop 4s ease-in-out infinite}
+.scene-companion{position:absolute;z-index:4;bottom:15.5%;right:14.5%;width:clamp(58px,18%,132px);aspect-ratio:1;pointer-events:none}
+.scene-companion::before{content:"";position:absolute;inset:auto 19% 7%;height:15%;border-radius:50%;background:radial-gradient(ellipse,#271419d9 5%,#27141988 40%,transparent 72%);pointer-events:none}
+.scene-egg-button{display:block;position:relative;width:100%;height:100%;background:none;border:0;padding:0;border-radius:38%;pointer-events:auto;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.scene-egg-button:focus-visible{outline:2px dashed #ffdaa8;outline-offset:0}
+.scene-egg-sprite{position:absolute;inset:0;background:url(./assets/dragon-egg.webp) center/contain no-repeat;transform-origin:50% 89%;filter:drop-shadow(0 2px 3px #27141b88);pointer-events:none}
+.scene-egg-sprite::after{content:"";position:absolute;inset:0;background:url(./assets/egg-cracks.svg) center/contain no-repeat;clip-path:inset(0 25% 57% 21%);opacity:0}
+.scene-companion[data-warmth="1"] .scene-egg-sprite::after{opacity:.75}
+.scene-companion[data-warmth="2"] .scene-egg-sprite::after{opacity:1;clip-path:none}
+.scene-companion[data-warmth="2"] .scene-egg-sprite{filter:drop-shadow(0 2px 3px #27141b88) brightness(1.07)}
+.scene-egg-button:hover .scene-egg-sprite{filter:drop-shadow(0 2px 3px #27141b88) brightness(1.09)}
+.scene-egg-button.is-warming .scene-egg-sprite{animation:egg-rock .46s ease-in-out}
+.scene-companion.baby .scene-egg-sprite{background-image:url(./assets/dragon-awake.webp);background-size:90%;background-position:center 63%;filter:hue-rotate(318deg) drop-shadow(0 3px 4px #160f20aa)}
+.scene-companion.baby .scene-egg-sprite::after{display:none}
+.scene-companion.baby.is-greeted .scene-egg-sprite{animation:hop .65s ease-out 2}
+@keyframes egg-rock{0%,100%{transform:rotate(0)}25%{transform:rotate(-5deg)}65%{transform:rotate(4deg)}}
+@media(max-width:665px){.scene-companion{bottom:19%;right:13.5%}}
 .quest{display:flex;align-items:center;gap:13px;padding:14px 15px;min-height:82px;transition:border-color .18s}
 .quest:hover{border-color:#aa697c}
 .quest-icon,.egg-icon{flex:none;display:grid;place-items:center;width:49px;height:49px;border-radius:14px;background:#423052;color:#d8bbfa;border:1px solid #604878}
@@ -117,6 +130,10 @@ h1 em{color:var(--peach);font-weight:400}
 .care-action[data-cooling=true]{opacity:.72}
 .egg-panel{padding:14px 15px;display:flex;align-items:center;gap:12px;min-height:82px}
 .egg-icon{background:#442d42;color:var(--peach);border-color:#654454}
+.egg-icon.is-real-egg{position:relative;background:#442e3e url(./assets/dragon-egg.webp) center/83% no-repeat}
+.egg-icon.is-real-egg .icon{display:none}
+.egg-icon.is-real-egg[data-warmth="1"]::after,.egg-icon.is-real-egg[data-warmth="2"]::after{content:"";position:absolute;inset:0;background:url(./assets/egg-cracks.svg) center/83% no-repeat}
+.egg-icon.is-real-egg[data-warmth="1"]::after{opacity:.75;clip-path:inset(0 25% 57% 21%)}
 .egg-copy h2{font-size:21px;line-height:1.15}
 .egg-copy p,.hint-copy{color:var(--muted);font-size:12px;line-height:1.5;margin-top:3px}
 .egg-copy .small-button{margin-top:7px}
@@ -204,7 +221,6 @@ html[data-quiet=true] *,html[data-quiet=true] *::before,html[data-quiet=true] *:
 .scene-pet-label .icon{width:15px;height:15px}
 .scene-pet-label:hover{background:#5d384e}
 .scene[data-action=play] .pet-sprite{animation:none;background-image:url(./assets/dragon-blink.webp)}
-.scene-companion.baby.is-greeted{animation:hop .65s ease-out 2}
 @media(max-width:360px){.scene-pet-label{right:8px;bottom:8px;min-height:36px}.scene figcaption{left:8px;bottom:8px}.scene figcaption small{font-size:8px}}
 .shop-card{grid-template-columns:minmax(0,1fr)}
 .shop-card h2{overflow-wrap:anywhere;hyphens:auto}

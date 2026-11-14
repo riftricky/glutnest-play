@@ -44,7 +44,11 @@
             <div class="pet-track"><button class="pet" id="pet" type="button" aria-label="Fünkchen streicheln"><span class="pet-sprite" aria-hidden="true"></span></button><span class="pet-reaction" id="pet-reaction" aria-hidden="true"></span></div>
             <button type="button" class="scene-pet-label" id="pet-label"><span data-icon="heart"></span> Streicheln</button>
             <div id="scene-keepsake" class="scene-keepsake" hidden></div>
-            <div id="scene-companion" class="scene-companion" aria-hidden="true"></div>
+            <div id="scene-companion" class="scene-companion" hidden>
+              <button id="scene-egg-button" class="scene-egg-button" type="button" aria-label="Drachenei wärmen" aria-describedby="egg-description" hidden>
+                <span class="scene-egg-sprite" aria-hidden="true"></span>
+              </button>
+            </div>
             <figcaption><div class="scene-portrait" data-icon="flame"></div><div><strong id="scene-name">Fünkchen</strong><small>DEIN DRACHENFREUND</small></div></figcaption>
           </figure>
           <a class="quest panel" id="nest-garden-link" href="#garten">
@@ -65,7 +69,7 @@
           </section>
           <a class="quest panel story-nest-link" href="#nestbuch"><span class="quest-icon" data-icon="book"></span><span class="quest-text"><strong id="nest-book-title">Das Nestbuch</strong><span id="nest-book-detail">Hier sammelt Fünkchen seine Erinnerungen.</span></span><span class="quest-arrow" data-icon="arrow"></span></a>
           <section class="panel egg-panel" aria-labelledby="egg-title">
-            <span id="egg-icon" class="egg-icon" data-icon="egg"></span><div class="egg-copy"><h2 id="egg-title">Ein kleines Geheimnis</h2><p id="egg-description">Tief im Garten wartet ein Drachenei auf dich.</p><button class="small-button" id="egg-action" type="button" hidden>Ei wärmen</button></div>
+            <span id="egg-icon" class="egg-icon" data-icon="egg" aria-hidden="true"></span><div class="egg-copy"><h2 id="egg-title">Ein kleines Geheimnis</h2><p id="egg-description">Tief im Garten wartet ein Drachenei auf dich.</p><button class="small-button" id="egg-action" type="button" hidden>Ei wärmen</button></div>
           </section>
         </div>
       </div>

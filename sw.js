@@ -1,6 +1,6 @@
 const scope = new URL(self.registration.scope);
 const cachePrefix = `glutnest:${scope.pathname}:`;
-const cacheName = `${cachePrefix}v3`;
+const cacheName = `${cachePrefix}v4`;
 const appHome = new URL('./index.html', scope);
 const shellFiles = [
   './index.html',
@@ -15,6 +15,8 @@ const shellFiles = [
   './assets/dragon-awake.webp',
   './assets/dragon-blink.webp',
   './assets/dragon-sleep.webp',
+  './assets/dragon-egg.webp',
+  './assets/egg-cracks.svg',
   './assets/icon.svg',
   './assets/icon-192.png',
   './assets/icon-512.png',

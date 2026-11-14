@@ -449,7 +449,7 @@ function renderNest() {
   $('quest-detail').textContent = active ? 'Du hast noch ' + state.round.movesLeft + ' Züge für diese Runde.' : next === MISSIONS[0] ? 'Kombiniere Kristalle und sammle Glutsterne fürs Nest.' : next ? next.description : 'Spiele deine Lieblingsrunde noch einmal und sammle Glutsterne.'
   const stage = state.egg.stage
   $('egg-title').textContent = stage === 'locked' ? 'Ein kleines Geheimnis' : stage === 'egg' ? 'Ein warmes Drachenei' : 'Hallo, Knöpfchen!'
-  $('egg-description').textContent = stage === 'locked' ? 'Tief im Garten wartet ein Drachenei auf dich.' : stage === 'egg' ? 'Wärme das Ei, bis es knackt. ' + state.egg.warmth + ' von 3 Mal gewärmt.' : 'Der kleine Drache ist geschlüpft und wohnt jetzt mit im Nest.'
+  $('egg-description').textContent = stage === 'locked' ? 'Tief im Garten wartet ein Drachenei auf dich.' : stage === 'egg' ? ['Das Ei liegt im Moos. Tippe es an, um es zu wärmen.', 'Ein feiner Riss ist zu sehen. Wärme das Ei noch zweimal.', 'Die Schale knackt. Wärme das Ei noch einmal.'][state.egg.warmth] : 'Der kleine Drache ist geschlüpft und wohnt jetzt mit im Nest.'
   $('egg-action').hidden = stage === 'locked'
   $('egg-action').textContent = stage === 'hatched' ? 'Knöpfchen begrüßen' : 'Ei wärmen'
   const souvenir = keepsake && storyMap.get(keepsake)?.reward
@@ -459,8 +459,17 @@ function renderNest() {
   if (comp.dataset.stage !== stage) {
     comp.dataset.stage = stage
     comp.classList.toggle('baby', stage === 'hatched')
-    comp.innerHTML = stage === 'egg' ? icon('egg') : ''
+    comp.classList.remove('is-greeted')
+    comp.hidden = stage === 'locked'
+    const sceneButton = $('scene-egg-button')
+    sceneButton.hidden = stage === 'locked'
+    sceneButton.classList.remove('is-warming')
+    sceneButton.setAttribute('aria-label', stage === 'hatched' ? 'Knöpfchen begrüßen' : 'Drachenei wärmen')
+    $('egg-icon').classList.toggle('is-real-egg', stage === 'egg')
+    $('egg-icon').innerHTML = icon(stage === 'hatched' ? 'heart' : 'egg')
   }
+  comp.dataset.warmth = String(state.egg.warmth)
+  $('egg-icon').dataset.warmth = comp.dataset.warmth
   if ($('den-decor').dataset.items !== state.equipped.join(',')) {
     $('den-decor').dataset.items = state.equipped.join(',')
     $('den-decor').innerHTML = state.equipped.map(id => '<span class="den-item" data-decor="' + id + '">' + icon(shopIcon[id]) + '</span>').join('')
@@ -790,7 +799,8 @@ $('shop').addEventListener('click', event => {
   const newStory = result.ok && state.equipped.includes(id) && storyEvent({ type:'decorate', id })
   persist(); wallet(); renderShop(); tell(storyMessage(result.message, newStory))
 })
-$('egg-action').addEventListener('click', () => {
+function interactWithEgg(event) {
+  const inScene = event.currentTarget === $('scene-egg-button')
   if (state.egg.stage === 'hatched') {
     const baby = $('scene-companion')
     baby.classList.remove('is-greeted')
@@ -805,10 +815,20 @@ $('egg-action').addEventListener('click', () => {
   state = result.state
   const newStory = result.ok && state.egg.stage === 'hatched' && storyEvent({ type:'hatch' })
   persist(); renderNest()
-  if (result.ok) react('egg')
-  if (state.egg.stage === 'hatched') { $('egg-title').tabIndex = -1; $('egg-title').focus() }
+  if (result.ok && state.egg.stage === 'egg') {
+    const button = $('scene-egg-button')
+    button.classList.remove('is-warming')
+    void button.offsetWidth
+    button.classList.add('is-warming')
+  }
+  if (state.egg.stage === 'hatched' && !inScene) {
+    $('egg-title').tabIndex = -1
+    $('egg-title').focus()
+  }
   tell(storyMessage(result.message, newStory))
-})
+}
+$('egg-action').addEventListener('click', interactWithEgg)
+$('scene-egg-button').addEventListener('click', interactWithEgg)
 $('pet').addEventListener('click', () => doCare('cuddle'))
 $('pet-label').addEventListener('click', () => doCare('cuddle'))
 document.querySelector('.skip').addEventListener('click', event => {
