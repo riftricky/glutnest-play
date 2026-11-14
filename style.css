@@ -557,3 +557,160 @@ html[data-quiet=true] *,html[data-quiet=true] *::before,html[data-quiet=true] *:
 .mastery-guide li span { display: block; margin-top: 2px; color: var(--muted); }
 .mastery-current { margin: 0 0 9px; padding: 7px 9px; border-radius: 8px; background: #52394d; color: #ffe0b5; font-size: 12px; line-height: 1.4; }
 .round-result p.medal-win { color: #ffdaa0; font-weight: 750; }
+
+.scene[data-star-light="abendglut"], [data-light="abendglut"] { --star-color: #ffc879; }
+.scene[data-star-light="mondschein"], [data-light="mondschein"] { --star-color: #a5c8ff; }
+.scene[data-star-light="bachleuchten"], [data-light="bachleuchten"] { --star-color: #70e2d2; }
+.scene[data-star-light="sternentanz"], [data-light="sternentanz"] { --star-color: #d1a5ff; }
+.star-light, .star-light-pattern {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.scene[data-star-light] .star-light {
+  display: block;
+  background: radial-gradient(ellipse at 83% 39%, color-mix(in srgb, var(--star-color) 51%, transparent), transparent 51%);
+}
+.scene[data-star-light] .star-light-pattern { display: block; }
+.star-light-pattern i {
+  position: absolute;
+  display: block;
+  height: var(--mark-size, 14px);
+  width: var(--mark-size, 14px);
+  color: var(--star-color);
+  filter: drop-shadow(0 0 7px currentColor);
+  opacity: .76;
+}
+.star-light-pattern i:nth-child(1) { top: 44%; right: 27%; }
+.star-light-pattern i:nth-child(2) { top: 31%; right: 8%; --mark-size: 9px; }
+.star-light-pattern i:nth-child(3) { top: 63%; right: 22%; --mark-size: 9px; }
+.star-light-pattern i::before { content: ""; display: block; width: 100%; height: 100%; background: currentColor; }
+.scene[data-star-light="abendglut"] .star-light-pattern i::before { border-radius: 50%; }
+.scene[data-star-light="abendglut"] .star-light-pattern i:nth-child(1) { --mark-size: 8px; }
+.scene[data-star-light="mondschein"] .star-light-pattern i:nth-child(1) { --mark-size: 22px; }
+.scene[data-star-light="mondschein"] .star-light-pattern i:nth-child(1)::before {
+  background: transparent;
+  border-left: 5px solid currentColor;
+  border-radius: 50%;
+  transform: rotate(-35deg);
+}
+.scene[data-star-light="mondschein"] .star-light-pattern i:not(:first-child)::before {
+  height: 3px;
+  width: 3px;
+  border-radius: 50%;
+}
+.scene[data-star-light="bachleuchten"] .star-light-pattern i {
+  --mark-size: 24px;
+  right: 23%;
+  transform: rotate(-14deg);
+}
+.scene[data-star-light="bachleuchten"] .star-light-pattern i:nth-child(2) { top: 53%; right: 6%; --mark-size: 32px; }
+.scene[data-star-light="bachleuchten"] .star-light-pattern i::before {
+  height: 9px;
+  background: transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 55%;
+  box-shadow: 0 -4px 0 -2px currentColor;
+}
+.scene[data-star-light="sternentanz"] .star-light-pattern i::before {
+  clip-path: polygon(50% 0, 65% 35%, 100% 50%, 65% 65%, 50% 100%, 35% 65%, 0 50%, 35% 35%);
+}
+.scene-star-lantern {
+  position: absolute;
+  z-index: 4;
+  top: 13%;
+  right: 7%;
+  width: clamp(57px, 19%, 129px);
+  aspect-ratio: 1;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 30%;
+  touch-action: manipulation;
+}
+.scene-star-lantern img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 5px 4px #261319bd) drop-shadow(0 6px 9px var(--star-color));
+  pointer-events: none;
+}
+.scene-star-lantern:hover img { filter: drop-shadow(0 5px 4px #261319bd) drop-shadow(0 6px 12px var(--star-color)) brightness(1.14); }
+.scene-star-lantern:focus-visible { outline: 2px dashed var(--star-color); outline-offset: 0; }
+.scene[data-lantern-reaction] .star-light-pattern i { animation: lantern-pattern 2.1s ease both; }
+.scene[data-lantern-reaction] .star-light-pattern i:nth-child(2) { animation-delay: .16s; }
+.scene[data-lantern-reaction] .star-light-pattern i:nth-child(3) { animation-delay: .28s; }
+.scene[data-lantern-reaction] .pet-track { animation-play-state: paused; }
+.scene[data-lantern-reaction] .pet-sprite { animation: none; }
+.scene[data-lantern-reaction="abendglut"]:not(.is-resting):not(.is-settling) .pet-sprite {
+  background-image: url(./assets/dragon-blink.webp);
+}
+.scene[data-lantern-reaction="abendglut"]:not(.is-resting):not(.is-settling) .pet { animation: lantern-curl 2.2s ease both; }
+.scene[data-lantern-reaction="mondschein"]:not(.is-resting):not(.is-settling) .pet { animation: lantern-watch 2.2s ease both; }
+.scene[data-lantern-reaction="bachleuchten"]:not(.is-resting):not(.is-settling) .pet { animation: lantern-watch-waves 2.2s ease both; }
+.scene[data-lantern-reaction="sternentanz"]:not(.is-resting):not(.is-settling) .pet { animation: lantern-follow 2.2s ease both; }
+.scene-companion.baby[data-lantern-reaction="abendglut"] .scene-egg-sprite { animation: lantern-baby-snuggle 2.1s ease both; }
+.scene-companion.baby[data-lantern-reaction="mondschein"] .scene-egg-sprite { animation: lantern-baby-step 2.1s ease both; }
+.scene-companion.baby[data-lantern-reaction="bachleuchten"] .scene-egg-sprite { animation: lantern-baby-pounce 2.1s ease both; }
+.scene-companion.baby[data-lantern-reaction="sternentanz"] .scene-egg-sprite { animation: lantern-baby-reach 2.1s ease both; }
+@keyframes lantern-pattern {
+  0%, 100% { opacity: .76; }
+  35% { opacity: 1; translate: 3px -6px; }
+  71% { opacity: .47; translate: -4px 3px; }
+}
+@keyframes lantern-curl {
+  27%, 67% { transform: translate(5%, 5%) rotate(4deg) scale(.98, .93); }
+}
+@keyframes lantern-watch {
+  30%, 66% { transform: translate(4%, -3%) rotate(8deg) scale(1, 1.04); }
+}
+@keyframes lantern-watch-waves {
+  29% { transform: translate(7%, 4%) rotate(7deg); }
+  61% { transform: translate(-4%, 5%) rotate(-5deg); }
+  79% { transform: translate(4%, 2%) rotate(4deg); }
+}
+@keyframes lantern-follow {
+  25% { transform: translate(3%, -7%) rotate(8deg); }
+  54% { transform: translate(-3%, -5%) rotate(-7deg); }
+  74% { transform: translate(4%, -9%) rotate(6deg); }
+}
+@keyframes lantern-baby-snuggle {
+  32%, 72% { transform: translate(13%, 3%) rotate(-5deg) scale(.94, .89); }
+}
+@keyframes lantern-baby-step {
+  24% { transform: translate(9%, -2%); }
+  52%, 70% { transform: translate(20%, -7%) rotate(11deg); }
+}
+@keyframes lantern-baby-pounce {
+  20% { transform: translate(11%, -14%) rotate(10deg); }
+  38% { transform: translate(16%, 2%) scale(1.05, .94); }
+  61% { transform: translate(-16%, -17%) rotate(-13deg); }
+  81% { transform: translate(-15%, 1%) scale(1.03, .91); }
+}
+@keyframes lantern-baby-reach {
+  23% { transform: translate(6%, -24%) rotate(12deg); }
+  41% { transform: translate(8%, -11%) rotate(-6deg); }
+  66% { transform: translate(13%, -30%) rotate(13deg); }
+  84% { transform: translate(6%, -2%) scale(1.04, .92); }
+}
+.star-lantern-panel { padding: 13px 16px; }
+.star-lantern-panel h2, .star-quests h3 { color: #ffdfc2; font-size: 23px; line-height: 1.1; }
+.star-lantern-panel p, .star-quests p, #mastery-reward-note { margin-top: 5px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.star-lantern-panel .small-button, .star-quests .small-button, .star-reward .small-button { min-height: 44px; }
+.star-light-choices { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 6px; }
+.star-light-choices button::before { content: ""; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: var(--star-color); }
+.star-light-choices [aria-pressed="true"] { color: var(--star-color); border-color: var(--star-color); background: #3d2b44; }
+.star-quests { margin-top: 13px; padding: 12px; background: #30243a; border: 1px solid #6b4c69; border-radius: 12px; }
+.star-quest { margin: 9px 0; padding: 8px 0 8px 10px; border-left: 2px solid var(--star-color); }
+.star-quest h4 { margin: 0; color: var(--star-color); font-size: 13px; }
+.star-quest p { margin: 4px 0; }
+.star-goal-current { border-color: #a68ac4; color: #eadaff; }
+.star-reward { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 8px 0; padding: 8px 10px; background: #45304a; border: 1px solid #87657c; border-radius: 10px; }
+.star-reward strong, .star-reward a { margin: 0; }
+@media (max-width: 665px) {
+  .scene-star-lantern { top: 18%; right: 7%; }
+  .star-lantern-panel { order: 1; width: 100%; }
+}

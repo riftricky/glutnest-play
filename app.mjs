@@ -8,7 +8,8 @@ import { STORIES, chooseStory, normalizeStories, recordStoryEvent, storyStatus }
 import { FIRST_REWARD_ID, firstRewardAction, rewardItemAction } from './reward.mjs'
 import { companionReaction } from './companion.mjs'
 import { FIND_ITEMS, displayedFind, normalizeFinds, recordGardenFind, setDisplayedFind } from './finds.mjs'
-import { renderPostcard, canSharePostcard, sharePostcard } from './postcard.mjs'
+import { renderPostcard, canSharePostcard, sharePostcard } from './postcard.mjs?v=sternennest'
+import { LANTERN_LIGHTS, normalizeLantern, beginLanternRound, recordLanternMove, lanternStatus, selectLanternLight, availableLanternLights, selectedLanternLight } from './lantern.mjs'
 import { MASTERY_GOALS, normalizeMastery, beginMasteryRound, recordMasteryMove, masteryStatus } from './mastery.mjs'
 
 const $ = (id) => document.getElementById(id)
@@ -56,10 +57,10 @@ const tileMap = Object.fromEntries(TILES.map(tile => [tile.id, tile]))
 const missionMap = Object.fromEntries(MISSIONS.map(mission => [mission.id, mission]))
 const pages = ['nest', 'garten', 'nestbuch', 'sammlung']
 const storyMap = new Map(STORIES.map(story => [story.id, story]))
-let stories, keepsake, finds, mastery, openedStory, storyOpener
+let stories, keepsake, finds, mastery, lantern, openedStory, storyOpener
 let page, state, settings, storageOK = true
 let selection = null, focused = 0, hinted = [], playingAnimation = false, pointer = null
-let reactionTimer, toastTimer, tabRefreshTimer, findFeedbackTimer
+let reactionTimer, toastTimer, tabRefreshTimer, findFeedbackTimer, lanternFeedbackTimer
 const tiles = []
 let confirmResolve = null
 
@@ -81,11 +82,12 @@ function readProgress(savedState) {
   stories = normalizeStories(savedState?.stories, state)
   finds = normalizeFinds(savedState?.finds, state)
   mastery = normalizeMastery(savedState?.mastery, state)
+  lantern = normalizeLantern(savedState?.lantern, mastery, state)
   keepsake = storyMap.has(savedState?.keepsake) && storyStatus(stories, savedState.keepsake) === 'complete'
     ? savedState.keepsake
     : null
 }
-function saveProgress() { return { ...state, stories, keepsake, finds, mastery } }
+function saveProgress() { return { ...state, stories, keepsake, finds, mastery, lantern } }
 function persist() {
   storageOK = store(key, saveProgress())
   $('save-note').textContent = storageOK
@@ -477,6 +479,7 @@ function renderNest() {
   $('scene-keepsake').hidden = !souvenir
   $('scene-keepsake').textContent = souvenir ? souvenir.symbol + ' ' + souvenir.title : ''
   renderNestFind()
+  renderLantern()
   const comp = $('scene-companion')
   if (comp.dataset.stage !== stage) {
     comp.dataset.stage = stage
@@ -516,6 +519,7 @@ function doCare(action) {
   persist()
   renderNest()
   if (result.ok) {
+    clearLanternReaction()
     clearFindReaction()
     $('scene').classList.remove('is-settling')
     react(action)
@@ -525,6 +529,134 @@ function doCare(action) {
   renderGuide(advancesGuide)
   tell(storyMessage(result.message, newStory))
 }
+function renderLantern() {
+  const light = selectedLanternLight(lantern)
+  const scene = $('scene')
+  const button = $('scene-star-lantern')
+  const choices = $('star-light-choices')
+  button.hidden = !light
+  $('star-lantern-panel').hidden = !light
+  if (!light) {
+    clearLanternReaction()
+    delete scene.dataset.starLight
+    return
+  }
+  if (scene.dataset.starLight !== light.id) clearLanternReaction()
+  scene.dataset.starLight = light.id
+  button.setAttribute('aria-label', 'Sternenlaterne den Drachen zeigen · ' + light.title)
+  $('star-lantern-copy').textContent = light.description
+  const available = availableLanternLights(lantern)
+  const quests = $('star-light-quests')
+  quests.hidden = available.length === Object.keys(LANTERN_LIGHTS).length
+  const signature = available.map(item => item.id).join(',')
+  if (choices.dataset.lights !== signature) {
+    choices.dataset.lights = signature
+    choices.replaceChildren(...available.map(item => {
+      const choice = element('button', item.title, 'small-button')
+      choice.type = 'button'
+      choice.dataset.light = item.id
+      return choice
+    }))
+  }
+  for (const choice of choices.children) {
+    choice.setAttribute('aria-pressed', String(choice.dataset.light === light.id))
+  }
+}
+
+function clearLanternReaction() {
+  clearTimeout(lanternFeedbackTimer)
+  delete $('scene').dataset.lanternReaction
+  delete $('scene-companion').dataset.lanternReaction
+}
+
+function showLanternReaction() {
+  const light = selectedLanternLight(lantern)
+  if (!light || hatchTransition) return
+  clearLanternReaction()
+  clearFindReaction()
+  clearTimeout(reactionTimer)
+  clearTimeout(companionFeedbackTimer)
+  const scene = $('scene')
+  const baby = $('scene-companion')
+  delete scene.dataset.action
+  delete baby.dataset.reaction
+  $('pet-reaction').textContent = scene.classList.contains('is-resting') ? 'z z z' : ''
+  void scene.offsetWidth
+  scene.dataset.lanternReaction = light.adult.kind
+  const resting = scene.classList.contains('is-resting') || scene.classList.contains('is-settling')
+  let message = resting ? state.name + ' schläft weiter im ' + light.title + '.' : light.adult.message.replaceAll('{name}', () => state.name)
+  if (state.egg.stage === 'hatched') {
+    baby.dataset.lanternReaction = light.baby.kind
+    message += ' ' + light.baby.message
+  }
+  lanternFeedbackTimer = setTimeout(clearLanternReaction, 2450)
+  tell(message)
+}
+
+function showStarDestination(lightId) {
+  const garden = page === 'garten'
+  if (garden && $('star-quests').hidden) return
+  const target = garden ? $('star-quests-title') : $('scene-star-lantern')
+  if (target.hidden) return
+  target.focus({ preventScroll:true })
+  target.scrollIntoView({ block:'nearest' })
+  if (!garden) {
+    const choice = selectLanternLight(lantern, lightId)
+    if (choice !== lantern) {
+      lantern = choice
+      persist()
+      renderLantern()
+    }
+    showLanternReaction()
+  }
+}
+
+function renderLanternQuests() {
+  $('star-quests').hidden = !lantern.unlocked
+  if (!lantern.unlocked) return
+  const list = $('star-quest-list')
+  const signature = lantern.earned.join(',')
+  if (list.dataset.earned !== signature) {
+    list.dataset.earned = signature
+    list.replaceChildren(...Object.values(LANTERN_LIGHTS).filter(light => light.goal).map(light => {
+      const earned = lantern.earned.includes(light.id)
+      const item = element('article', '', 'star-quest')
+      item.dataset.light = light.id
+      item.append(element('h4', light.title), element('p', earned ? 'Freigeschaltet · im Nest auswählbar' : light.goal.description))
+      if (!earned) {
+        const button = element('button', missionMap[light.goal.missionId].label + ' spielen', 'small-button')
+        button.type = 'button'
+        button.dataset.lightMission = light.goal.missionId
+        item.append(button)
+      }
+      return item
+    }))
+  }
+  for (const button of list.querySelectorAll('[data-light-mission]')) {
+    const id = button.dataset.lightMission
+    const running = state.round?.status === 'playing' && state.round.missionId === id
+    button.dataset.restart = String(running && !lanternStatus(lantern, mastery, state))
+    button.textContent = missionMap[id].label + (button.dataset.restart === 'true' ? ' neu starten' : running ? ' fortsetzen' : ' spielen')
+  }
+  $('star-quests-copy').textContent = Object.values(LANTERN_LIGHTS).every(light => !light.goal || lantern.earned.includes(light.id))
+    ? 'Alle Lichter leuchten jetzt in deinem Nest.'
+    : 'Schalte neue Lichter für die Sternenlaterne frei.'
+}
+
+$('scene-star-lantern').addEventListener('click', showLanternReaction)
+$('star-light-choices').addEventListener('click', event => {
+  const choice = event.target.closest('button[data-light]')
+  if (!choice) return
+  lantern = selectLanternLight(lantern, choice.dataset.light)
+  persist()
+  renderLantern()
+  showLanternReaction()
+})
+$('star-quest-list').addEventListener('click', event => {
+  const control = event.target.closest('[data-light-mission]')
+  if (control) begin(control.dataset.lightMission, control.dataset.restart === 'true')
+})
+
 function renderNestFind() {
   const item = displayedFind(finds)
   const button = $('scene-find')
@@ -583,6 +715,7 @@ function clearFindReaction() {
 function showFindReaction() {
   const item = displayedFind(finds)
   if (!item || hatchTransition) return
+  clearLanternReaction()
   clearFindReaction()
   const baby = $('scene-companion')
   clearTimeout(companionFeedbackTimer)
@@ -616,6 +749,7 @@ $('find-list').addEventListener('click', event => {
   const remove = finds.displayed === id
   const next = setDisplayedFind(finds, remove ? null : id)
   if (next === finds) return
+  clearLanternReaction()
   finds = next
   persist()
   renderFinds()
@@ -655,6 +789,7 @@ $('postcard-open').addEventListener('click', async () => {
       equipped: [...state.equipped],
       find: item ? { id:item.id, label:item.name } : null,
       keepsake: reward || null,
+      starLantern: selectedLanternLight(lantern),
     })
     if (postcardSession !== session || !$('postcard-dialog').open) return
     session.card = card
@@ -717,6 +852,8 @@ function renderMasteryBook() {
   const goals = MISSIONS.filter(mission => state.progress.wins.includes(mission.id) && MASTERY_GOALS[mission.id])
   $('mastery-guide').hidden = !goals.length
   $('mastery-summary').textContent = 'Sternabzeichen (' + mastery.earned.length + '/' + Object.keys(MASTERY_GOALS).length + ')'
+  $('mastery-reward-note').textContent = lantern.unlocked ? 'Die Sternenlaterne hängt in deinem Nest.' : 'Vier Sternabzeichen bringen dir eine Sternenlaterne fürs Nest.'
+  renderLanternQuests()
   $('mastery-list').replaceChildren(...goals.map(mission => {
     const goal = MASTERY_GOALS[mission.id]
     const earned = mastery.earned.includes(mission.id)
@@ -809,6 +946,9 @@ function renderRound(reward = null) {
     ? masteryGoal.progress + ' Züge übrig'
     : masteryGoal ? masteryGoal.progress + ' von ' + masteryGoal.target : ''
   $('mastery-current').textContent = masteryGoal ? masteryGoal.goal.title + ': ' + masteryGoal.goal.description + ' (' + medalProgress + ')' : ''
+  const lightGoal = lanternStatus(lantern, mastery, state)
+  $('star-goal-current').hidden = !lightGoal
+  $('star-goal-current').textContent = lightGoal ? lightGoal.light.title + ' · ' + lightGoal.goal.unit + ': ' + lightGoal.progress + ' von ' + lightGoal.target + '. Gewinne die Runde.' : ''
   const done = round.status !== 'playing'
   $('hint').disabled = done || playingAnimation
   $('round-result').hidden = !done
@@ -820,9 +960,12 @@ function renderRound(reward = null) {
     const find = won && FIND_ITEMS.find(item => item.missionId === mission.id && finds.owned.includes(item.id))
     const findLink = find ? '<div class="find-win"><img src="./' + find.asset + '" alt=""><div><strong>' + find.name + '</strong><a class="small-button" href="' + (finds.displayed === find.id ? '#nest/fund' : '#sammlung/funde') + '">' + (finds.displayed === find.id ? 'Fund im Nest ansehen' : 'Zu den Fundstücken') + '</a></div></div>' : ''
     const medal = reward?.medal ? '<p class="medal-win">✦ Sternabzeichen: ' + reward.medal.title + '</p>' : ''
+    const newLight = reward?.light
+    const showLanternLink = won && lantern.unlocked && (reward?.lanternUnlocked || newLight || !reward)
+    const lanternLink = showLanternLink ? '<div class="star-reward"><strong>' + (newLight ? 'Neues Licht: ' + newLight.title : 'Sternenlaterne im Nest') + '</strong><a class="small-button" href="#nest/sterne' + (newLight ? '/' + newLight.id : '') + '">' + (newLight ? 'Neues Licht im Nest einschalten' : 'Zur Sternenlaterne') + '</a></div>' : ''
     const furnishing = firstRewardAction(state)
     const furnishingLink = furnishing ? '<a class="primary" href="#sammlung/mooskissen">' + furnishing.label + '</a>' : ''
-    $('round-result').innerHTML = '<strong>' + (won ? 'Geschafft!' : 'Die Runde ist zu Ende.') + '</strong><p>' + text + '</p>' + medal + findLink + furnishingLink + (next ? '<button class="' + (furnishing ? 'small-button' : 'primary') + '" type="button" data-next="' + next.id + '">' + next.label + ' spielen</button>' : won && state.egg.stage === 'egg' ? '<a class="primary" href="#nest">Zum Drachenei</a>' : '') + '<button class="small-button" type="button" data-retry="' + mission.id + '">Noch einmal</button>'
+    $('round-result').innerHTML = '<strong>' + (won ? 'Geschafft!' : 'Die Runde ist zu Ende.') + '</strong><p>' + text + '</p>' + medal + lanternLink + findLink + furnishingLink + (next ? '<button class="' + (furnishing ? 'small-button' : 'primary') + '" type="button" data-next="' + next.id + '">' + next.label + ' spielen</button>' : won && state.egg.stage === 'egg' ? '<a class="primary" href="#nest">Zum Drachenei</a>' : '') + '<button class="small-button" type="button" data-retry="' + mission.id + '">Noch einmal</button>'
   }
 }
 function renderGarden() { renderMissions(); if (!playingAnimation) renderRound() }
@@ -830,7 +973,9 @@ function route(focusHeading = false) {
   const hash = location.hash.slice(1)
   const cushionRoute = hash === 'sammlung/mooskissen' || hash === 'nest/mooskissen'
   const findRoute = hash === 'sammlung/funde' || hash === 'nest/fund'
-  const requested = cushionRoute || findRoute ? hash.split('/')[0] : hash
+  const lightRoute = hash.match(/^nest\/sterne(?:\/([a-z]+))?$/)
+  const starRoute = lightRoute || hash === 'garten/lichtsuche'
+  const requested = cushionRoute || findRoute || starRoute ? hash.split('/')[0] : hash
   page = pages.includes(requested) ? requested : 'nest'
   for (const id of pages) {
     $('view-' + id).hidden = id !== page
@@ -840,6 +985,7 @@ function route(focusHeading = false) {
   }
   if (page !== 'nest') {
     endHatch(false)
+    clearLanternReaction()
     clearFindReaction()
     $('scene').classList.remove('is-settling')
   }
@@ -851,9 +997,10 @@ function route(focusHeading = false) {
     $('view-' + page).querySelector('h1').focus({ preventScroll: true })
     window.scrollTo({ top: 0, behavior: 'instant' })
   }
-  renderGuide(focusHeading && !cushionRoute && !findRoute)
+  renderGuide(focusHeading && !cushionRoute && !findRoute && !starRoute)
   if (cushionRoute) showCushionDestination()
   if (findRoute && focusHeading) showFindDestination()
+  if (starRoute && focusHeading) showStarDestination(lightRoute?.[1])
 }
 
 function showCushionDestination() {
@@ -903,6 +1050,7 @@ async function begin(id, replace = false) {
   if (playingAnimation) return
   if (!replace && state.round?.missionId === id && state.round.status === 'playing') {
     $('active-round-title').focus({ preventScroll:true })
+    $('round').scrollIntoView({ block:'start', behavior:'instant' })
     return
   }
   if (state.round?.status === 'playing') {
@@ -912,6 +1060,7 @@ async function begin(id, replace = false) {
   if (!result.ok) { tell(result.message); return }
   state = result.state
   mastery = beginMasteryRound(mastery, state)
+  lantern = beginLanternRound(lantern, mastery, state)
   selection = null; focused = 0; hinted = []
   persist()
   renderGarden()
@@ -955,6 +1104,10 @@ async function chooseTile(index) {
   finds = discovery.finds
   const medal = recordMasteryMove(mastery, state, result.summary)
   mastery = medal.mastery
+  const hadLantern = lantern.unlocked
+  const light = recordLanternMove(lantern, mastery, state, result.summary)
+  lantern = light.lantern
+  const lanternUnlocked = !hadLantern && lantern.unlocked
   const previousGuideStep = guide.step
   setGuide({ type:'move-committed', from, to:index })
   if (previousGuideStep === 'pair' && guide.step === 'reward') guideMatchPoints = result.summary.score
@@ -973,7 +1126,7 @@ async function chooseTile(index) {
   playingAnimation = false
   if (page === 'garten') {
     renderMissions()
-    renderRound({ ...result.summary, medal:medal.earned })
+    renderRound({ ...result.summary, medal:medal.earned, lanternUnlocked, light:light.earned })
     if (result.summary.activatedSpecials) {
       $('board-help').textContent = 'Gezündete Spezialkristalle: ' + result.summary.activatedSpecials
     } else if (result.summary.createdSpecials) {
@@ -997,6 +1150,8 @@ async function chooseTile(index) {
   let message = result.message
   if (discovery.discovered) message += ' Gefunden: ' + discovery.discovered.name + '.'
   if (medal.earned) message += ' Sternabzeichen: ' + medal.earned.title + '.'
+  if (lanternUnlocked) message += ' Die Sternenlaterne leuchtet jetzt in deinem Nest.'
+  if (light.earned) message += ' Neues Laternenlicht: ' + light.earned.title + '.'
   tell(storyMessage(message, newStory))
 }
 
@@ -1082,6 +1237,7 @@ function interactWithEgg(event) {
   if (state.egg.stage === 'hatched') {
     const baby = $('scene-companion')
     clearFindReaction()
+    clearLanternReaction()
     const reaction = companionReaction(state, companionPlays++)
     delete baby.dataset.reaction
     void baby.offsetWidth
@@ -1176,6 +1332,7 @@ $('save-file').addEventListener('change', async () => {
   if (playingAnimation || !await confirm('Spielstand einspielen?', 'Die Sicherung ersetzt den Spielstand in diesem Browser.', 'Einspielen')) return
   endHatch(false)
   clearFindReaction()
+  clearLanternReaction()
   readProgress(data.state)
   setGuide({ type:'skip' })
   settings.quiet = data.settings?.quiet === true

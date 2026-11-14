@@ -10,8 +10,8 @@
   <link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="stylesheet" href="./style.css?v=fundpost">
-  <script type="module" src="./app.mjs?v=fundpost"></script>
+  <link rel="stylesheet" href="./style.css?v=sternennest">
+  <script type="module" src="./app.mjs?v=sternennest"></script>
 </head>
 <body>
   <a class="skip" href="#main">Zum Spiel</a>
@@ -38,6 +38,9 @@
         <div class="left-stack">
           <figure class="scene" id="scene" aria-label="Fünkchens Nest">
             <div class="scene-bg"></div><div class="scene-light"></div>
+            <div class="star-light" aria-hidden="true"></div>
+            <span class="star-light-pattern" aria-hidden="true"><i></i><i></i><i></i></span>
+            <button type="button" class="scene-star-lantern" id="scene-star-lantern" aria-describedby="star-lantern-copy" hidden><img src="./assets/star-lantern.webp" alt=""></button>
             <div class="scene-top"><span class="scene-tag"><i></i> DAS WALDNEST</span><span class="scene-tag quiet" id="scene-time"></span></div>
             <div class="embers" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
             <div class="den-decor" id="den-decor" aria-hidden="true"></div>
@@ -60,6 +63,12 @@
             </div>
             <figcaption><div class="scene-portrait" data-icon="flame"></div><div><strong id="scene-name">Fünkchen</strong><small>DEIN DRACHENFREUND</small></div></figcaption>
           </figure>
+          <section class="panel star-lantern-panel" id="star-lantern-panel" aria-labelledby="star-lantern-title" hidden>
+            <h2 id="star-lantern-title">Sternenlaterne</h2>
+            <p id="star-lantern-copy">Wähle ein Licht oder tippe die Laterne im Nest an.</p>
+            <div class="star-light-choices" id="star-light-choices" role="group" aria-label="Licht der Sternenlaterne"></div>
+            <a class="small-button" href="#garten/lichtsuche" id="star-light-quests">Weitere Lichter finden</a>
+          </section>
           <div class="nest-tools">
             <button class="small-button" id="postcard-open" type="button" aria-haspopup="dialog"><span data-icon="camera"></span> Postkarte gestalten</button>
             <a class="small-button" href="#sammlung/funde" id="nest-finds-link" hidden>Fundstücke ansehen</a>
@@ -91,7 +100,7 @@
     <section id="view-garten" class="view" aria-labelledby="garden-title" hidden>
       <div class="intro"><div class="eyebrow"><span data-icon="gem"></span> MATCH-3 IM FLÜSTERWALD</div><h1 id="garden-title" tabindex="-1">Der <em>Kristallgarten.</em></h1><p>Tausche zwei Nachbarn und bring drei gleiche Kristalle in eine Reihe.</p></div>
       <div class="garden-layout">
-        <section class="panel missions" aria-labelledby="mission-title"><div class="eyebrow">DER WALDPFAD</div><h2 id="mission-title">Abenteuer</h2><div id="mission-list"></div><details class="mastery-guide" id="mastery-guide" hidden><summary id="mastery-summary">Sternabzeichen</summary><ul id="mastery-list"></ul></details><details class="special-guide"><summary>Spezialkristalle</summary><p>Vier gleiche Kristalle in einer Linie ergeben einen <strong>Funkenstrahl</strong>. Fünf in einer Linie oder eine T- oder L-Form ergeben einen <strong>Sternenfunken</strong>.</p><p>Kombiniere den markierten Kristall erneut. Der Strahl räumt eine ganze Linie, der Sternenfunke ein Feld von 3 × 3.</p></details></section>
+        <section class="panel missions" aria-labelledby="mission-title"><div class="eyebrow">DER WALDPFAD</div><h2 id="mission-title">Abenteuer</h2><div id="mission-list"></div><details class="mastery-guide" id="mastery-guide" hidden><summary id="mastery-summary">Sternabzeichen</summary><ul id="mastery-list"></ul><p id="mastery-reward-note">Vier Sternabzeichen bringen dir eine Sternenlaterne fürs Nest.</p></details><section class="star-quests" id="star-quests" aria-labelledby="star-quests-title" hidden><h3 id="star-quests-title" tabindex="-1">Lichtsuche</h3><p id="star-quests-copy">Schalte neue Lichter für die Sternenlaterne frei.</p><div id="star-quest-list"></div><a class="small-button" href="#nest/sterne">Zur Sternenlaterne</a></section><details class="special-guide"><summary>Spezialkristalle</summary><p>Vier gleiche Kristalle in einer Linie ergeben einen <strong>Funkenstrahl</strong>. Fünf in einer Linie oder eine T- oder L-Form ergeben einen <strong>Sternenfunken</strong>.</p><p>Kombiniere den markierten Kristall erneut. Der Strahl räumt eine ganze Linie, der Sternenfunke ein Feld von 3 × 3.</p></details></section>
         <section class="panel play-panel" aria-labelledby="round-title">
           <div id="guide-garden-slot"></div>
           <div id="board-empty" class="board-empty"><div class="empty-gem" data-icon="gem"></div><h2 id="round-title">Das Glutfeld wartet.</h2><p>Hier beginnt deine Schatzsuche. Beim ersten Spiel zeigt dir ein goldener Schimmer einen möglichen Zug.</p><button id="first-round" class="primary" type="button">Glutfeld spielen <span data-icon="arrow"></span></button></div>
@@ -99,6 +108,7 @@
             <div class="round-heading"><div><div class="eyebrow">AKTUELLES SPIEL</div><h2 id="active-round-title" tabindex="-1"></h2></div><div class="moves"><strong id="moves-left"></strong><small>ZÜGE ÜBRIG</small></div></div>
             <div id="round-goals" class="round-goals"></div>
             <p id="mastery-current" class="mastery-current" hidden></p>
+            <p id="star-goal-current" class="mastery-current star-goal-current" hidden></p>
             <div id="guide-board-slot"></div>
             <div id="board" class="board" role="grid" aria-label="Kristallspielfeld" aria-describedby="board-instructions"></div>
             <p id="board-instructions" class="sr-only">Wähle mit Pfeiltasten ein Feld und mit Eingabe oder Leertaste einen Kristall. Wähle danach einen Nachbarn. Escape hebt die Auswahl auf.</p>
