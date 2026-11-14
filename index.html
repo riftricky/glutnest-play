@@ -1,9 +1,9 @@
 <!doctype html>
 <html lang="de">
 <head>
+  <meta name="robots" content="noindex,nofollow">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="robots" content="noindex, nofollow">
   <meta name="theme-color" content="#18131d">
   <meta name="description" content="Ein kleiner Drache, ein warmes Nest und ein bisschen Magie für jeden Tag.">
   <title>Glutnest · Ein kleines Drachenspiel</title>
@@ -33,6 +33,7 @@
         <h1 id="nest-title" tabindex="-1">Willkommen im <em>Glutnest.</em></h1>
         <p>Ein kleines Wesen. Ein warmes Nest. Und jeden Tag ein bisschen Magie.</p>
       </div>
+      <div id="guide-nest-slot"></div>
       <div class="nest-layout">
         <div class="left-stack">
           <figure class="scene" id="scene" aria-label="Fünkchens Nest">
@@ -46,7 +47,7 @@
             <div id="scene-companion" class="scene-companion" aria-hidden="true"></div>
             <figcaption><div class="scene-portrait" data-icon="flame"></div><div><strong id="scene-name">Fünkchen</strong><small>DEIN DRACHENFREUND</small></div></figcaption>
           </figure>
-          <a class="quest panel" href="#garten">
+          <a class="quest panel" id="nest-garden-link" href="#garten">
             <span class="quest-icon" data-icon="gem"></span>
             <span class="quest-text"><small id="quest-kicker">DEIN NÄCHSTES ABENTEUER</small><strong id="quest-title">Auf in den Kristallgarten!</strong><span id="quest-detail">Kombiniere Kristalle und sammle Glutsterne fürs Nest.</span></span>
             <span class="quest-arrow" data-icon="arrow"></span>
@@ -75,10 +76,12 @@
       <div class="garden-layout">
         <section class="panel missions" aria-labelledby="mission-title"><div class="eyebrow">DER WALDPFAD</div><h2 id="mission-title">Abenteuer</h2><div id="mission-list"></div><details class="special-guide"><summary>Spezialkristalle</summary><p>Vier gleiche Kristalle in einer Linie ergeben einen <strong>Funkenstrahl</strong>. Fünf in einer Linie oder eine T- oder L-Form ergeben einen <strong>Sternenfunken</strong>.</p><p>Kombiniere den markierten Kristall erneut. Der Strahl räumt eine ganze Linie, der Sternenfunke ein Feld von 3 × 3.</p></details></section>
         <section class="panel play-panel" aria-labelledby="round-title">
+          <div id="guide-garden-slot"></div>
           <div id="board-empty" class="board-empty"><div class="empty-gem" data-icon="gem"></div><h2 id="round-title">Das Glutfeld wartet.</h2><p>Hier beginnt deine Schatzsuche. Beim ersten Spiel zeigt dir ein goldener Schimmer einen möglichen Zug.</p><button id="first-round" class="primary" type="button">Glutfeld spielen <span data-icon="arrow"></span></button></div>
           <div id="round" hidden>
             <div class="round-heading"><div><div class="eyebrow">AKTUELLES SPIEL</div><h2 id="active-round-title" tabindex="-1"></h2></div><div class="moves"><strong id="moves-left"></strong><small>ZÜGE ÜBRIG</small></div></div>
             <div id="round-goals" class="round-goals"></div>
+            <div id="guide-board-slot"></div>
             <div id="board" class="board" role="grid" aria-label="Kristallspielfeld" aria-describedby="board-instructions"></div>
             <p id="board-instructions" class="sr-only">Wähle mit Pfeiltasten ein Feld und mit Eingabe oder Leertaste einen Kristall. Wähle danach einen Nachbarn. Escape hebt die Auswahl auf.</p>
             <div id="round-result" class="round-result" hidden></div>
@@ -107,6 +110,22 @@
     <footer aria-hidden="true"><span data-icon="sparkles"></span></footer>
   </main>
 
+  <aside class="guide-card" id="guide-card" aria-labelledby="guide-title" hidden>
+    <div class="guide-portrait" aria-hidden="true"></div>
+    <div class="guide-content">
+      <div class="guide-status" id="guide-status">Fünkchen</div>
+      <div id="guide-copy" role="status" aria-atomic="true">
+        <h2 id="guide-title"></h2>
+        <p id="guide-note"></p>
+      </div>
+      <div class="guide-actions">
+        <button class="primary" id="guide-action" type="button" hidden></button>
+        <button class="small-button" id="guide-other" type="button" hidden></button>
+        <button class="guide-skip" id="guide-skip" type="button">Überspringen</button>
+      </div>
+    </div>
+  </aside>
+
   <dialog id="story-dialog" class="panel story-dialog" aria-labelledby="story-title" aria-describedby="story-body">
     <div id="story-dialog-art" class="story-dialog-art" aria-hidden="true"></div>
     <div class="story-dialog-content">
@@ -126,6 +145,7 @@
       <p class="settings-note" id="save-note">Dein Spielstand bleibt in diesem Browser. Über eine Sicherung kannst du ihn auf ein anderes Gerät mitnehmen.</p>
       <div class="backup-actions"><button class="small-button" id="export-save" type="button">Sicherung herunterladen</button><button class="small-button" id="import-save" type="button">Sicherung einspielen</button><input type="file" id="save-file" accept=".json,application/json" hidden></div>
       <p class="settings-note" id="settings-status" role="status"></p>
+      <button class="small-button" id="guide-replay" type="button">Einführung starten</button>
       <div class="dialog-actions"><button class="primary" type="submit">Speichern</button></div>
     </form>
   </dialog>

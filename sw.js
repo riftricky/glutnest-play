@@ -1,6 +1,6 @@
 const scope = new URL(self.registration.scope);
 const cachePrefix = `glutnest:${scope.pathname}:`;
-const cacheName = `${cachePrefix}v2`;
+const cacheName = `${cachePrefix}v3`;
 const appHome = new URL('./index.html', scope);
 const shellFiles = [
   './index.html',
@@ -8,6 +8,7 @@ const shellFiles = [
   './app.mjs',
   './game.mjs',
   './stories.mjs',
+  './guide.mjs',
   './assets/nestbuch.webp',
   './manifest.webmanifest',
   './assets/nest.webp',

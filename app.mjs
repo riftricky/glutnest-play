@@ -3,6 +3,7 @@ import {
   getHint, getLevel, getMood, isMissionUnlocked, normalizeState,
   playMove, renameDragon, startRound, tick, toggleItem,
 } from './game.mjs'
+import { GUIDE_KEY, GUIDE_STEPS, beginGuide, guideEvent, normalizeGuide } from './guide.mjs'
 import { STORIES, chooseStory, normalizeStories, recordStoryEvent, storyStatus } from './stories.mjs'
 
 const $ = (id) => document.getElementById(id)
@@ -65,6 +66,8 @@ function store(keyName, value) {
   catch { return false }
 }
 const saved = load(key) ?? load(legacyKey)
+let guide = normalizeGuide(load(GUIDE_KEY), { hasSave:!!saved })
+store(GUIDE_KEY, guide)
 readProgress(saved)
 settings = { quiet: load(settingsKey)?.quiet === true }
 function readProgress(savedState) {
@@ -258,6 +261,160 @@ $('story-dialog').addEventListener('close', () => {
   else if (id) $('story-list').querySelector('[data-story="' + id + '"]')?.focus()
 })
 
+function setGuide(event) {
+  const next = guideEvent(guide, event)
+  if (next !== guide) {
+    guide = next
+    store(GUIDE_KEY, guide)
+  }
+}
+let guidePrimary, guideSecondary, guideTarget, guideViewport, guideMatchPoints
+const guideRoute = (id) => () => { location.hash = id }
+const guideContinue = () => {
+  setGuide({ type:'continue' })
+  renderGuide(true)
+  if (guide.status === 'finished') $('view-' + page).querySelector('h1').focus({ preventScroll:true })
+}
+
+function renderGuide(focus = false) {
+  const card = $('guide-card')
+  if (guideTarget) {
+    guideTarget.classList.remove('guide-target')
+    const described = (guideTarget.getAttribute('aria-describedby') ?? '').split(/\s+/).filter(id => id && id !== 'guide-note')
+    if (described.length) guideTarget.setAttribute('aria-describedby', described.join(' '))
+    else guideTarget.removeAttribute('aria-describedby')
+    guideTarget = null
+  }
+  card.hidden = guide.status !== 'active'
+  if (card.hidden) return
+
+  if (guide.step === 'garden' && page === 'garten' && state.round?.status === 'playing') {
+    setGuide({ type:'garden' })
+  }
+  if (guide.step === 'pair' && page === 'garten' && state.round?.status === 'playing') {
+    const nextPair = getHint(state.round)
+    if (!guide.pair || !nextPair || !guide.pair.every(index => nextPair.includes(index))) {
+      setGuide({ type:'pair-set', pair:nextPair })
+    }
+    setGuide({ type:'tile-selected', index:selection })
+  }
+  const name = state.name
+  const stepNumber = GUIDE_STEPS.indexOf(guide.step) + 1
+  const current = state.round
+  const hasRound = current?.status === 'playing'
+  let title, note, action, other, target
+  let place = page === 'nest' ? $('guide-nest-slot') : page === 'garten' ? $('guide-garden-slot') : $('view-' + page)
+  if (guide.step === 'feed') {
+    title = 'Hi, ich bin ' + name + '!'
+    note = 'Ich wohne jetzt in diesem Nest. Tippe auf „Füttern“, um mir eine Glutbeere zu geben. Am Balken „Sattheit“ siehst du, wie hungrig ich bin.'
+    if (page === 'nest') {
+      target = $('care-feed')
+      const ready = Date.now() - (state.careAt.feed ?? 0) >= 45000 && state.needs.fullness < 99
+      action = ready ? ['Füttern', () => doCare('feed')] : ['Weiter', () => {
+        setGuide({ type:'fed' })
+        renderGuide(true)
+      }]
+      if (!ready) note = 'So sieht mein Nest aus. Gerade bin ich satt. Am Balken „Sattheit“ siehst du, wann ich wieder eine Glutbeere brauche.'
+    } else {
+      action = ['Zum Nest', guideRoute('nest')]
+    }
+  } else if (guide.step === 'garden') {
+    title = 'Komm mit in den Kristallgarten'
+    note = 'Denk auch ans Spielen, Kuscheln und Schlafen. Tippe auf „Zum Kristallgarten“. Dort finden wir Glutsterne fürs Nest.'
+    if (page === 'garten') {
+      title = 'Öffne das Glutfeld'
+      note = 'Tippe auf „Glutfeld spielen“. Für jeden Zug kannst du dir Zeit lassen.'
+      target = $('first-round').closest('[hidden]') ? $('mission-list').querySelector('[data-mission="glutfeld"]') : $('first-round')
+      action = ['Glutfeld spielen', () => begin(MISSIONS[0].id)]
+    } else {
+      target = page === 'nest' ? $('nest-garden-link') : document.querySelector('[data-page="garten"]')
+      action = ['Zum Kristallgarten', guideRoute('garten')]
+    }
+  } else if (guide.step === 'pair' && page === 'garten' && hasRound && guide.pair) {
+    place = $('guide-board-slot')
+    const [first, second] = guide.pair
+    const next = guide.selected === null ? first : guide.selected === first ? second : first
+    const row = Math.floor(next / BOARD_SIZE) + 1
+    const col = next % BOARD_SIZE + 1
+    target = tiles[next]
+    title = guide.selected === null ? 'Wähle den markierten Kristall' : 'Jetzt den markierten Nachbarn'
+    note = tileMap[current.board[next]].label + ' in Reihe ' + row + ', Spalte ' + col + '. Beim Tausch verschwinden drei oder mehr gleiche Kristalle in einer Linie.'
+    other = ['Zum markierten Feld', () => {
+      target.focus({ preventScroll:true })
+      target.scrollIntoView({ block:'nearest' })
+    }]
+  } else if (guide.step === 'pair') {
+    title = 'Jetzt probieren wir einen Zug'
+    note = 'Ich zeige dir ein Kristallpaar, das du tauschen kannst.'
+    action = page === 'garten' ? ['Glutfeld spielen', () => begin(MISSIONS[0].id)] : ['Zum Kristallgarten', guideRoute('garten')]
+  } else if (guide.step === 'reward') {
+    if (page === 'garten' && current) place = $('guide-board-slot')
+    title = current?.status === 'won' ? 'Deine ersten Glutsterne!' : 'So entstehen Punkte!'
+    const resultNote = guideMatchPoints ? 'Dieser Tausch hat dir ' + guideMatchPoints + ' Punkte gebracht. ' : ''
+    note = current?.status === 'won'
+      ? resultNote + 'Deine Glutsterne stehen oben im Spiel. In der Sammlung kannst du sie gegen Deko fürs Nest tauschen.'
+      : resultNote + 'Oben siehst du dein Ziel und die übrigen Züge. Schaffst du das Ziel, bekommst du Glutsterne für Nestdeko. Mit „Tipp“ findest du den nächsten Tausch.'
+    target = page === 'garten' && hasRound ? $('hint') : null
+    action = ['Weiter', guideContinue]
+  } else {
+    title = 'Ein Buch für unsere Abenteuer'
+    note = 'Pflege, Deko und Rätsel schalten Geschichten frei. Im Nestbuch entscheidest du, wie sie ausgehen.'
+    action = ['Einführung abschließen', guideContinue]
+    if (page !== 'nestbuch') {
+      other = ['Nestbuch ansehen', () => {
+        setGuide({ type:'journal' })
+        location.hash = 'nestbuch'
+        renderGuide()
+      }]
+    }
+  }
+  if (card.parentElement !== place) place.prepend(card)
+  $('guide-status').textContent = name + ' begleitet dich · ' + stepNumber + ' / ' + GUIDE_STEPS.length
+  if ($('guide-title').textContent !== title || $('guide-note').textContent !== note) {
+    $('guide-title').textContent = title
+    $('guide-note').textContent = note
+  }
+  guidePrimary = action?.[1]
+  guideSecondary = other?.[1]
+  $('guide-action').classList.toggle('guide-action-marked', !!target && (guide.step === 'feed' || guide.step === 'garden'))
+  $('guide-action').hidden = !guidePrimary
+  $('guide-other').hidden = !guideSecondary
+  if (action) $('guide-action').textContent = action[0]
+  if (other) $('guide-other').textContent = other[0]
+  if (target) {
+    target.classList.add('guide-target')
+    const descriptions = (target.getAttribute('aria-describedby') ?? '').split(/\s+/).filter(Boolean)
+    target.setAttribute('aria-describedby', [...new Set([...descriptions, 'guide-note'])].join(' '))
+    guideTarget = target
+  }
+  if (focus) {
+    cancelAnimationFrame(guideViewport)
+    guideViewport = requestAnimationFrame(() => {
+      if (card.hidden || document.querySelector('dialog[open]')) return
+      const heading = $('guide-title')
+      heading.tabIndex = -1
+      heading.focus({ preventScroll:true })
+      card.scrollIntoView({ block:'nearest' })
+    })
+  }
+}
+
+$('guide-action').addEventListener('click', () => guidePrimary?.())
+$('guide-other').addEventListener('click', () => guideSecondary?.())
+$('guide-skip').addEventListener('click', () => {
+  setGuide({ type:'skip' })
+  renderGuide()
+  $('view-' + page).querySelector('h1').focus({ preventScroll:true })
+})
+$('guide-replay').addEventListener('click', () => {
+  guide = beginGuide()
+  guideMatchPoints = null
+  store(GUIDE_KEY, guide)
+  $('settings-dialog').close()
+  if (page !== 'nest') location.hash = 'nest'
+  else renderGuide(true)
+})
+
 function renderNest() {
   const now = Date.now()
   const level = getLevel(state)
@@ -327,6 +484,9 @@ function doCare(action) {
   persist()
   renderNest()
   if (result.ok) react(action)
+  const advancesGuide = result.ok && action === 'feed' && guide.status === 'active' && guide.step === 'feed'
+  if (advancesGuide) setGuide({ type:'fed' })
+  renderGuide(advancesGuide)
   tell(storyMessage(result.message, newStory))
 }
 function renderShop() {
@@ -450,6 +610,7 @@ function route(focusHeading = false) {
     $('view-' + page).querySelector('h1').focus({ preventScroll: true })
     window.scrollTo({ top: 0, behavior: 'instant' })
   }
+  renderGuide(focusHeading)
 }
 function confirm(title, copy, action) {
   if ($('confirm-dialog').open) return Promise.resolve(false)
@@ -471,6 +632,7 @@ function showHint(initial = false) {
   selection = null
   hinted = pair
   updateBoardInteraction()
+  renderGuide()
   if (!initial) {
     const pos = pair.map(i => 'Reihe ' + (Math.floor(i / BOARD_SIZE) + 1) + ', Spalte ' + (i % BOARD_SIZE + 1))
     tell('Versuch es mit den markierten Kristallen: ' + pos.join(' und ') + '.')
@@ -492,9 +654,10 @@ async function begin(id, replace = false) {
   persist()
   renderGarden()
   $('board-help').textContent = 'Tippe nacheinander auf zwei benachbarte Kristalle.'
-  if (id === MISSIONS[0].id && !state.progress.wins.includes(id)) showHint(true)
+  if (id === MISSIONS[0].id && !state.progress.wins.includes(id) && guide.status !== 'active') showHint(true)
   $('active-round-title').focus({ preventScroll:true })
   if (innerWidth <= 665) $('round').scrollIntoView({ block:'start', behavior:'instant' })
+  renderGuide(true)
 }
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms))
 async function chooseTile(index) {
@@ -503,6 +666,7 @@ async function chooseTile(index) {
   if (selection === null || selection === index) {
     selection = selection === null ? index : null
     updateBoardInteraction()
+    renderGuide()
     return
   }
   const from = selection
@@ -510,12 +674,14 @@ async function chooseTile(index) {
   if (!adjacent) {
     selection = index
     updateBoardInteraction()
+    renderGuide()
     return
   }
   selection = null; hinted = []
   const result = playMove(state, from, index)
   if (!result.ok) {
     updateBoardInteraction()
+    renderGuide()
     tell(result.message)
     return
   }
@@ -523,6 +689,10 @@ async function chooseTile(index) {
   playingAnimation = true
   $('hint').disabled = true
   state = result.state
+  const previousGuideStep = guide.step
+  setGuide({ type:'move-committed', from, to:index })
+  if (previousGuideStep === 'pair' && guide.step === 'reward') guideMatchPoints = result.summary.score
+  if (guide.step === 'pair' && state.round.status !== 'playing') setGuide({ type:'pair-set', pair:null })
   const cleared = result.frames.flatMap(frame => frame.cleared.map(i => frame.before[i]))
   const newStory = storyEvent({ type:'match', cleared, chains:result.summary.chains, activatedSpecials:result.summary.activatedSpecials })
   persist()
@@ -557,6 +727,7 @@ async function chooseTile(index) {
   if (page === 'nest') renderNest()
   if (page === 'nestbuch') renderBook()
   if (page === 'sammlung') renderShop()
+  renderGuide(previousGuideStep === 'pair' && guide.step === 'reward')
   tell(storyMessage(result.message, newStory))
 }
 
@@ -564,7 +735,7 @@ $('board').addEventListener('keydown', event => {
   const tile = event.target.closest('[data-index]')
   if (!tile) return
   const i = Number(tile.dataset.index)
-  if (event.key === 'Escape') { selection = null; updateBoardInteraction(); return }
+  if (event.key === 'Escape') { selection = null; updateBoardInteraction(); renderGuide(); return }
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault()
     if (!event.repeat) chooseTile(i)
@@ -686,6 +857,7 @@ $('save-file').addEventListener('change', async () => {
   } catch { $('settings-status').textContent = 'Diese Datei ist keine gültige Glutnest-Sicherung.'; return }
   if (playingAnimation || !await confirm('Spielstand einspielen?', 'Die Sicherung ersetzt den Spielstand in diesem Browser.', 'Einspielen')) return
   readProgress(data.state)
+  setGuide({ type:'skip' })
   settings.quiet = data.settings?.quiet === true
   document.documentElement.dataset.quiet = String(settings.quiet)
   store(settingsKey, settings)
@@ -709,6 +881,11 @@ function absorbOtherTab() {
   if (openedStory) paintStory()
 }
 addEventListener('storage', event => {
+  if (event.key === GUIDE_KEY) {
+    guide = normalizeGuide(load(GUIDE_KEY), { hasSave:true })
+    renderGuide()
+    return
+  }
   if (event.key !== key) return
   clearTimeout(tabRefreshTimer)
   tabRefreshTimer = setTimeout(absorbOtherTab, 420)
@@ -728,7 +905,8 @@ persist()
 wallet()
 renderBookLink()
 route()
-if (state.round?.missionId === MISSIONS[0].id && state.round.score === 0) showHint(true)
+if (state.round?.missionId === MISSIONS[0].id && state.round.score === 0 && guide.status !== 'active') showHint(true)
+if (guide.status === 'active' && page === 'garten') renderGuide(true)
 if ('serviceWorker' in navigator && window.isSecureContext) {
   addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}), { once:true })
 }
