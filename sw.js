@@ -1,13 +1,16 @@
 const scope = new URL(self.registration.scope);
 const cachePrefix = `glutnest:${scope.pathname}:`;
-const cacheName = `${cachePrefix}v6`;
+const cacheName = `${cachePrefix}v7`;
 const appHome = new URL('./index.html', scope);
 const shellFiles = [
   './index.html',
-  './style.css?v=schlupf',
-  './app.mjs?v=schlupf',
+  './style.css?v=lebendiges-nest',
+  './app.mjs?v=lebendiges-nest',
   './game.mjs',
-  './stories.mjs',
+  './stories.mjs?v=lebendiges-nest',
+  './reward.mjs',
+  './companion.mjs',
+  './assets/moss-cushion.webp',
   './guide.mjs',
   './assets/nestbuch.webp',
   './manifest.webmanifest',

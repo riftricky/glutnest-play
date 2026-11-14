@@ -93,7 +93,6 @@ h1 em{color:var(--peach);font-weight:400}
 .scene-egg-button.is-warming .scene-egg-sprite{animation:egg-rock .46s ease-in-out}
 .scene-companion.baby .scene-egg-sprite{background-image:url(./assets/dragon-awake.webp);background-size:90%;background-position:center 63%;filter:hue-rotate(318deg) drop-shadow(0 3px 4px #160f20aa)}
 .scene-companion.baby .scene-egg-sprite::after{display:none}
-.scene-companion.baby.is-greeted .scene-egg-sprite{animation:hop .65s ease-out 2}
 @keyframes egg-rock{0%,100%{transform:rotate(0)}25%{transform:rotate(-5deg)}65%{transform:rotate(4deg)}}
 @media(max-width:665px){.scene-companion{bottom:19%;right:13.5%}}
 .quest{display:flex;align-items:center;gap:13px;padding:14px 15px;min-height:82px;transition:border-color .18s}
@@ -358,4 +357,86 @@ html[data-quiet=true] *,html[data-quiet=true] *::before,html[data-quiet=true] *:
   0%, 33% { opacity: 0; transform: translateY(18%) scale(.62); }
   52% { opacity: 1; transform: translateY(4%) scale(.81); }
   78%, 100% { opacity: 1; transform: none; }
+}
+.scene-moss-cushion {
+  position: absolute;
+  z-index: 2;
+  width: clamp(143px, 46%, 333px);
+  aspect-ratio: 1.84;
+  left: 50%;
+  top: 79%;
+  translate: -50% -50%;
+  background: url(./assets/moss-cushion.webp) center / contain no-repeat;
+  filter: drop-shadow(0 4px 4px #1b1017a8);
+  pointer-events: none;
+}
+.scene.has-moss-cushion .pet-track { top: 55%; }
+.scene.is-settling .pet-track {
+  animation: none;
+  transform: none;
+}
+.scene.is-settling .pet-sprite {
+  background-image: url(./assets/dragon-sleep.webp);
+  animation: none;
+}
+.scene.is-settling:not([data-action]) .pet {
+  animation: nest-settle .7s ease-out both;
+}
+@keyframes nest-settle {
+  from { transform: translateY(-5%) scale(1,.96); }
+  to { transform: none; }
+}
+.shop-art img {
+  width: min(78%, 192px);
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 5px 6px #22152d88);
+}
+.reward-spotlight { border-color: #b48787; }
+.shop-view { text-align: center; }
+.round-result a, .round-result button { margin: 4px 5px 0 0; }
+.companion-glimmer {
+  display: none;
+  position: absolute;
+  z-index: 1;
+  top: 20%;
+  right: 9%;
+  width: clamp(8px, 11%, 13px);
+  aspect-ratio: 1;
+  background: #ffda9e;
+  border-radius: 50%;
+  box-shadow: 0 0 12px 3px #efaa69;
+  pointer-events: none;
+}
+.scene-companion.baby[data-reaction="flap"] .scene-egg-sprite {
+  animation: baby-flap 1.16s ease-in-out both;
+}
+.scene-companion.baby[data-reaction="flap"] .companion-glimmer {
+  display: block;
+  animation: baby-glimmer 1.16s ease-in-out both;
+}
+.scene-companion.baby[data-reaction="peek"] .scene-egg-sprite {
+  animation: baby-peek 1.1s ease-in-out both;
+}
+@keyframes baby-flap {
+  0%,100% { transform: none; }
+  20% { transform: translate(-7%, 3%) scale(1.05,.9); }
+  38% { transform: translate(9%,-17%) rotate(7deg); }
+  54% { transform: translate(15%,-5%) scale(.96,1.03); }
+  70% { transform: translate(-5%,-14%) rotate(-6deg); }
+  87% { transform: translate(-5%,3%) scale(1.04,.92); }
+}
+@keyframes baby-glimmer {
+  0%,100% { opacity: 0; }
+  22%,66% { opacity: 1; }
+  60%,100% { transform: translate(-170%, -30%); }
+}
+@keyframes baby-peek {
+  0%,100% { transform: none; }
+  31%,49% { transform: translateY(13%) scale(.98,.59) rotate(-6deg); }
+  70% { transform: translateY(2%) rotate(5deg); }
+}
+@media (max-width:665px) {
+  .scene-moss-cushion { top: 77%; }
+  .scene.has-moss-cushion .pet-track { top: 54%; }
 }

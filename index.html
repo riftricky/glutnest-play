@@ -10,8 +10,8 @@
   <link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="stylesheet" href="./style.css?v=schlupf">
-  <script type="module" src="./app.mjs?v=schlupf"></script>
+  <link rel="stylesheet" href="./style.css?v=lebendiges-nest">
+  <script type="module" src="./app.mjs?v=lebendiges-nest"></script>
 </head>
 <body>
   <a class="skip" href="#main">Zum Spiel</a>
@@ -41,12 +41,14 @@
             <div class="scene-top"><span class="scene-tag"><i></i> DAS WALDNEST</span><span class="scene-tag quiet" id="scene-time"></span></div>
             <div class="embers" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
             <div class="den-decor" id="den-decor" aria-hidden="true"></div>
+            <div class="scene-moss-cushion" id="scene-moss-cushion" hidden aria-hidden="true"></div>
             <div class="pet-track"><button class="pet" id="pet" type="button" aria-label="Fünkchen streicheln"><span class="pet-sprite" aria-hidden="true"></span></button><span class="pet-reaction" id="pet-reaction" aria-hidden="true"></span></div>
             <button type="button" class="scene-pet-label" id="pet-label"><span data-icon="heart"></span> Streicheln</button>
             <div id="scene-keepsake" class="scene-keepsake" hidden></div>
             <div id="scene-companion" class="scene-companion" hidden>
               <button id="scene-egg-button" class="scene-egg-button" type="button" aria-label="Drachenei wärmen" aria-describedby="egg-description" hidden>
                 <span class="scene-egg-sprite" aria-hidden="true"></span>
+                <span class="companion-glimmer" aria-hidden="true"></span>
                 <span class="hatch-scene" aria-hidden="true">
                   <span class="hatch-shell hatch-left"></span>
                   <span class="hatch-shell hatch-right"></span>

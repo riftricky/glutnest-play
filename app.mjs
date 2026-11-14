@@ -4,7 +4,9 @@ import {
   playMove, renameDragon, startRound, tick, toggleItem,
 } from './game.mjs'
 import { GUIDE_KEY, GUIDE_STEPS, beginGuide, guideEvent, normalizeGuide } from './guide.mjs'
-import { STORIES, chooseStory, normalizeStories, recordStoryEvent, storyStatus } from './stories.mjs'
+import { STORIES, chooseStory, normalizeStories, recordStoryEvent, storyStatus } from './stories.mjs?v=lebendiges-nest'
+import { FIRST_REWARD_ID, firstRewardAction, rewardItemAction } from './reward.mjs'
+import { companionReaction } from './companion.mjs'
 
 const $ = (id) => document.getElementById(id)
 const key = 'glutnest.save.v2'
@@ -416,6 +418,8 @@ $('guide-replay').addEventListener('click', () => {
 })
 
 let hatchTransition = null
+let companionPlays = 0
+let companionFeedbackTimer
 
 function renderNest() {
   const now = Date.now()
@@ -429,6 +433,10 @@ function renderNest() {
   $('level').textContent = 'Stufe ' + level.level
   setProgress($('xp-progress'), level.percent, $('xp-fill'))
   $('xp-progress').setAttribute('aria-valuetext', level.maxed ? 'Höchste Stufe erreicht' : level.current + ' von ' + level.target + ' Erfahrung bis zur nächsten Stufe')
+  const hasCushion = state.equipped.includes(FIRST_REWARD_ID)
+  $('scene').classList.toggle('has-moss-cushion', hasCushion)
+  $('scene-moss-cushion').hidden = !hasCushion
+  if (!hasCushion) $('scene').classList.remove('is-settling')
   $('scene').classList.toggle('is-resting', mood.key === 'resting')
   if (!$('scene').dataset.action) $('pet-reaction').textContent = mood.key === 'resting' ? 'z z z' : ''
   $('scene-time').textContent = mood.label
@@ -452,9 +460,9 @@ function renderNest() {
   const stage = hatchTransition ? 'hatching' : state.egg.stage
   const hatching = stage === 'hatching'
   $('egg-title').textContent = stage === 'locked' ? 'Ein kleines Geheimnis' : hatching ? 'Die Schale bricht auf!' : stage === 'egg' ? 'Ein warmes Drachenei' : 'Hallo, Knöpfchen!'
-  $('egg-description').textContent = stage === 'locked' ? 'Tief im Garten wartet ein Drachenei auf dich.' : hatching ? 'Unter der Schale bewegt sich etwas.' : stage === 'egg' ? ['Das Ei liegt im Moos. Tippe es an, um es zu wärmen.', 'Ein feiner Riss ist zu sehen. Wärme das Ei noch zweimal.', 'Die Schale knackt. Wärme das Ei noch einmal.'][state.egg.warmth] : 'Der kleine Drache ist geschlüpft und wohnt jetzt mit im Nest.'
+  $('egg-description').textContent = stage === 'locked' ? 'Tief im Garten wartet ein Drachenei auf dich.' : hatching ? 'Unter der Schale bewegt sich etwas.' : stage === 'egg' ? ['Das Ei liegt im Moos. Tippe es an, um es zu wärmen.', 'Ein feiner Riss ist zu sehen. Wärme das Ei noch zweimal.', 'Die Schale knackt. Wärme das Ei noch einmal.'][state.egg.warmth] : 'Knöpfchen übt schon kleine Flügelschläge. Tippe es im Nest an und spiel mit ihm.'
   $('egg-action').hidden = stage === 'locked'
-  $('egg-action').textContent = hatching ? 'Knöpfchen schlüpft …' : stage === 'hatched' ? 'Knöpfchen begrüßen' : 'Ei wärmen'
+  $('egg-action').textContent = hatching ? 'Knöpfchen schlüpft …' : stage === 'hatched' ? 'Mit Knöpfchen spielen' : 'Ei wärmen'
   for (const id of ['egg-action', 'scene-egg-button']) {
     if (hatching) $(id).setAttribute('aria-disabled', 'true')
     else $(id).removeAttribute('aria-disabled')
@@ -466,12 +474,13 @@ function renderNest() {
   if (comp.dataset.stage !== stage) {
     comp.dataset.stage = stage
     comp.classList.toggle('baby', stage === 'hatched')
-    comp.classList.remove('is-greeted')
+    delete comp.dataset.reaction
+    if (stage !== 'hatched') companionPlays = 0
     comp.hidden = stage === 'locked'
     const sceneButton = $('scene-egg-button')
     sceneButton.hidden = stage === 'locked'
     sceneButton.classList.remove('is-warming')
-    sceneButton.setAttribute('aria-label', hatching ? 'Knöpfchen schlüpft' : stage === 'hatched' ? 'Knöpfchen begrüßen' : 'Drachenei wärmen')
+    sceneButton.setAttribute('aria-label', hatching ? 'Knöpfchen schlüpft' : stage === 'hatched' ? 'Mit Knöpfchen spielen' : 'Drachenei wärmen')
     $('egg-icon').classList.toggle('is-real-egg', hatching || stage === 'egg')
     $('egg-icon').innerHTML = icon(stage === 'hatched' ? 'heart' : 'egg')
   }
@@ -479,7 +488,7 @@ function renderNest() {
   $('egg-icon').dataset.warmth = comp.dataset.warmth
   if ($('den-decor').dataset.items !== state.equipped.join(',')) {
     $('den-decor').dataset.items = state.equipped.join(',')
-    $('den-decor').innerHTML = state.equipped.map(id => '<span class="den-item" data-decor="' + id + '">' + icon(shopIcon[id]) + '</span>').join('')
+    $('den-decor').innerHTML = state.equipped.filter(id => id !== FIRST_REWARD_ID).map(id => '<span class="den-item" data-decor="' + id + '">' + icon(shopIcon[id]) + '</span>').join('')
   }
 }
 function react(action) {
@@ -499,7 +508,10 @@ function doCare(action) {
   const newStory = result.ok && storyEvent({ type:'care', action })
   persist()
   renderNest()
-  if (result.ok) react(action)
+  if (result.ok) {
+    $('scene').classList.remove('is-settling')
+    react(action)
+  }
   const advancesGuide = result.ok && action === 'feed' && guide.status === 'active' && guide.step === 'feed'
   if (advancesGuide) setGuide({ type:'fed' })
   renderGuide(advancesGuide)
@@ -512,8 +524,12 @@ function renderShop() {
     const equipped = state.equipped.includes(item.id)
     const locked = getLevel(state).level < item.level
     const cost = locked && !owned ? 'Ab Stufe ' + item.level : owned ? equipped ? 'Im Nest' : 'In deiner Sammlung' : item.cost + ' Glutsterne'
-    const action = owned ? equipped ? 'Verstauen' : 'Aufstellen' : 'Freischalten'
-    return '<article class="panel shop-card"><div class="shop-art">' + icon(shopIcon[item.id]) + '</div><h2>' + item.label + '</h2><p>' + item.description + '</p><div class="shop-foot"><span>' + icon(owned ? 'check' : locked ? 'lock' : 'sparkles') + cost + '</span><button type="button" class="small-button" data-shop="' + item.id + '" aria-label="' + item.label + ': ' + action + '"' + (locked && !owned ? ' disabled' : '') + '>' + action + '</button></div></article>'
+    const reward = rewardItemAction(state, item.id)
+    const action = reward?.action === 'view' ? 'Verstauen' : reward?.label ?? (owned ? equipped ? 'Verstauen' : 'Aufstellen' : 'Freischalten')
+    const art = reward ? '<img src="./assets/moss-cushion.webp" alt="">' : icon(shopIcon[item.id])
+    const view = reward?.action === 'view' ? '<a class="primary shop-view" href="#nest/mooskissen">Im Nest ansehen</a>' : ''
+    const spotlight = item.id === FIRST_REWARD_ID && location.hash === '#sammlung/mooskissen' ? ' reward-spotlight' : ''
+    return '<article class="panel shop-card' + spotlight + '" id="shop-' + item.id + '"><div class="shop-art">' + art + '</div><h2>' + item.label + '</h2><p>' + item.description + '</p><div class="shop-foot"><span>' + icon(owned ? 'check' : locked ? 'lock' : 'sparkles') + cost + '</span><button type="button" class="small-button" data-shop="' + item.id + '" aria-label="' + item.label + ': ' + action + '"' + (locked && !owned ? ' disabled' : '') + '>' + action + '</button>' + view + '</div></article>'
   }).join('')
   if (active) $('shop').querySelector('[data-shop="' + active + '"]')?.focus({ preventScroll: true })
 }
@@ -605,12 +621,16 @@ function renderRound(reward = null) {
     const nextMission = MISSIONS[MISSIONS.indexOf(mission) + 1]
     const next = won && nextMission && isMissionUnlocked(state, nextMission.id) ? nextMission : null
     const text = !won ? 'Zwei Glutsterne nimmst du trotzdem mit.' : reward?.eggFound ? 'Du hast ein Drachenei gefunden! Im Nest kannst du es wärmen.' : reward ? 'Du hast ' + reward.glow + ' Glutsterne gesammelt.' : 'Dein Fortschritt und deine Belohnung sind gespeichert.'
-    $('round-result').innerHTML = '<strong>' + (won ? 'Geschafft!' : 'Die Runde ist zu Ende.') + '</strong><p>' + text + '</p>' + (next ? '<button class="primary" type="button" data-next="' + next.id + '">' + next.label + ' spielen</button>' : won && state.egg.stage === 'egg' ? '<a class="primary" href="#nest">Zum Drachenei</a>' : '') + '<button class="small-button" type="button" data-retry="' + mission.id + '">Noch einmal</button>'
+    const furnishing = firstRewardAction(state)
+    const furnishingLink = furnishing ? '<a class="primary" href="#sammlung/mooskissen">' + furnishing.label + '</a>' : ''
+    $('round-result').innerHTML = '<strong>' + (won ? 'Geschafft!' : 'Die Runde ist zu Ende.') + '</strong><p>' + text + '</p>' + furnishingLink + (next ? '<button class="' + (furnishing ? 'small-button' : 'primary') + '" type="button" data-next="' + next.id + '">' + next.label + ' spielen</button>' : won && state.egg.stage === 'egg' ? '<a class="primary" href="#nest">Zum Drachenei</a>' : '') + '<button class="small-button" type="button" data-retry="' + mission.id + '">Noch einmal</button>'
   }
 }
 function renderGarden() { renderMissions(); if (!playingAnimation) renderRound() }
 function route(focusHeading = false) {
-  const requested = location.hash.slice(1)
+  const hash = location.hash.slice(1)
+  const cushionRoute = hash === 'sammlung/mooskissen' || hash === 'nest/mooskissen'
+  const requested = cushionRoute ? hash.split('/')[0] : hash
   page = pages.includes(requested) ? requested : 'nest'
   for (const id of pages) {
     $('view-' + id).hidden = id !== page
@@ -618,7 +638,10 @@ function route(focusHeading = false) {
     if (id === page) nav.setAttribute('aria-current','page')
     else nav.removeAttribute('aria-current')
   }
-  if (page !== 'nest') endHatch(false)
+  if (page !== 'nest') {
+    endHatch(false)
+    $('scene').classList.remove('is-settling')
+  }
   if (page === 'nest') renderNest()
   if (page === 'garten') renderGarden()
   if (page === 'nestbuch') renderBook()
@@ -627,7 +650,26 @@ function route(focusHeading = false) {
     $('view-' + page).querySelector('h1').focus({ preventScroll: true })
     window.scrollTo({ top: 0, behavior: 'instant' })
   }
-  renderGuide(focusHeading)
+  renderGuide(focusHeading && !cushionRoute)
+  if (cushionRoute) showCushionDestination()
+}
+
+function showCushionDestination() {
+  if (page === 'sammlung') {
+    const shopCard = $('shop-' + FIRST_REWARD_ID)
+    shopCard.classList.add('reward-spotlight')
+    const target = shopCard.querySelector('.shop-view') ?? shopCard.querySelector('[data-shop]')
+    target.focus({ preventScroll:true })
+    shopCard.scrollIntoView({ block:'nearest' })
+    return
+  }
+  if (!state.equipped.includes(FIRST_REWARD_ID)) return
+  const scene = $('scene')
+  scene.tabIndex = -1
+  scene.focus({ preventScroll:true })
+  scene.scrollIntoView({ block:'nearest' })
+  scene.classList.add('is-settling')
+  tell(state.name + ' kuschelt sich aufs Mooskissen.')
 }
 function confirm(title, copy, action) {
   if ($('confirm-dialog').open) return Promise.resolve(false)
@@ -805,7 +847,11 @@ $('shop').addEventListener('click', event => {
   const result = (state.owned.includes(id) ? toggleItem : buyItem)(state, id)
   state = result.state
   const newStory = result.ok && state.equipped.includes(id) && storyEvent({ type:'decorate', id })
-  persist(); wallet(); renderShop(); tell(storyMessage(result.message, newStory))
+  persist(); wallet(); renderShop()
+  if (result.ok && id === FIRST_REWARD_ID && state.equipped.includes(id)) {
+    $('shop-' + id).querySelector('.shop-view').focus({ preventScroll:true })
+  }
+  tell(storyMessage(result.message, newStory))
 })
 function endHatch(announce = true) {
   if (!hatchTransition) return
@@ -825,12 +871,19 @@ function interactWithEgg(event) {
   const inScene = event.currentTarget === $('scene-egg-button')
   if (state.egg.stage === 'hatched') {
     const baby = $('scene-companion')
-    baby.classList.remove('is-greeted')
+    const reaction = companionReaction(state, companionPlays++)
+    delete baby.dataset.reaction
     void baby.offsetWidth
-    baby.classList.add('is-greeted')
-    const newStory = storyEvent({ type:'care', action:'greet' })
+    baby.dataset.reaction = reaction.kind
+    clearTimeout(companionFeedbackTimer)
+    companionFeedbackTimer = setTimeout(() => { delete baby.dataset.reaction }, 1300)
+    const newStory = storyEvent({ type:'baby-play' })
     persist()
-    tell(storyMessage('Knöpfchen piepst und macht einen kleinen Luftsprung.', newStory))
+    if (!inScene) {
+      $('scene').scrollIntoView({ block:'nearest' })
+      $('scene-egg-button').focus({ preventScroll:true })
+    }
+    tell(storyMessage(reaction.message, newStory))
     return
   }
   const result = careForEgg(state)

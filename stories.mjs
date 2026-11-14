@@ -98,9 +98,9 @@ export const STORIES = [
   {
     id: 'erste-flugstunde',
     title: 'Die erste Flugstunde',
-    teaser: 'Begrüße Knöpfchen nach dem Schlüpfen und spiele mit deinem Drachen.',
+    teaser: 'Spiel nach dem Schlüpfen mit Knöpfchen.',
     art: 'baby',
-    body: 'Knöpfchen beobachtet jeden Flügelschlag beim Spielen. Als {name} landet, klettert das Kleine auf eine Wurzel und breitet beide Flügel aus.',
+    body: 'Beim Spielen flattert Knöpfchen einem Glühfunken hinterher. {name} sieht zu, wie das Kleine auf eine Wurzel klettert und beide Flügel ausbreitet.',
     choices: [
       { id: 'kissen', label: 'Unter der Wurzel warten', ending: 'Knöpfchen springt, flattert zweimal und landet in deinen Händen. Für Knöpfchen war das ganz bestimmt schon Fliegen.' },
       { id: 'vormachen', label: 'Mit den Armen mitflattern', ending: 'Zwei kleine Flügel und zwei große Arme rudern um die Wette. Knöpfchen hüpft herunter und landet mit einem unerwartet stolzen Plumps.' },
@@ -164,7 +164,7 @@ function discoveryRules(stories, petState) {
     waldleuchten: stories.specialSeen,
     sternenspur: won('sternenhoehle'),
     'kleines-knacken': hatched,
-    'erste-flugstunde': hatched && babySeen('greet') && babySeen('play'),
+    'erste-flugstunde': hatched && (stories.babyPlayed || (babySeen('greet') && babySeen('play'))),
     mondblumennacht: hatched && owns('moon-flowers') && babySeen('rest'),
     lichtungsschatz: hatched && won('gluehlichtung'),
   }
@@ -186,6 +186,7 @@ export function normalizeStories(input, petState) {
     matched: knownValues(input?.matched, TILE_TYPES),
     cascadeMax,
     specialSeen: input?.specialSeen === true,
+    babyPlayed: input?.babyPlayed === true && petState?.egg?.stage === 'hatched',
     completed: completedChoices(input?.completed),
     revealed: knownValues(input?.revealed, STORIES.map(story => story.id)),
   }, petState)
@@ -199,6 +200,7 @@ export function recordStoryEvent(stories, petState, event) {
       current.seenAfterHatch = knownValues([...current.seenAfterHatch, event.action], CARE_ACTIONS)
     }
   }
+  if (event?.type === 'baby-play' && petState?.egg?.stage === 'hatched') current.babyPlayed = true
   if (event?.type === 'match') {
     const cleared = knownValues(event.cleared, TILE_TYPES)
     if (Number.isSafeInteger(event.activatedSpecials) && event.activatedSpecials > 0) current.specialSeen = true
