@@ -1,0 +1,74 @@
+name: Deploy Glutnest Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .nojekyll
+      - index.html
+      - style.css
+      - manifest.webmanifest
+      - sw.js
+      - '*.mjs'
+      - 'assets/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: glutnest-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.repository == 'riftricky/glutnest-play' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.publish.outputs.page_url }}
+    steps:
+      - name: Check out the public site
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Prepare the Pages artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          current=$(git ls-remote https://github.com/riftricky/glutnest-play.git refs/heads/main)
+          if [[ "${current%%$'\t'*}" != "$GITHUB_SHA" ]]; then
+            echo 'A newer release is already on main.'
+            exit 0
+          fi
+          site="$RUNNER_TEMP/glutnest-pages"
+          mkdir "$site"
+          for item in .nojekyll index.html style.css manifest.webmanifest sw.js *.mjs assets; do
+            if [[ ! -L "$item" && ( -d "$item" || -f "$item" ) ]]; then
+              cp -R -- "$item" "$site/"
+            else
+              printf 'Unexpected site item: %s\n' "$item" >&2
+              exit 1
+            fi
+          done
+          test -s "$site/index.html"
+          test -z "$(find "$site" -type l -print -quit)"
+          echo 'ready=true' >> "$GITHUB_OUTPUT"
+        id: bundle
+
+      - name: Upload the static site
+        if: steps.bundle.outputs.ready == 'true'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: ${{ runner.temp }}/glutnest-pages
+
+      - name: Publish GitHub Pages
+        if: steps.bundle.outputs.ready == 'true'
+        id: publish
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
