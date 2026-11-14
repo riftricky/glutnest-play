@@ -10,8 +10,8 @@
   <link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="stylesheet" href="./style.css?v=lebendiges-nest">
-  <script type="module" src="./app.mjs?v=lebendiges-nest"></script>
+  <link rel="stylesheet" href="./style.css?v=fundpost">
+  <script type="module" src="./app.mjs?v=fundpost"></script>
 </head>
 <body>
   <a class="skip" href="#main">Zum Spiel</a>
@@ -44,6 +44,7 @@
             <div class="scene-moss-cushion" id="scene-moss-cushion" hidden aria-hidden="true"></div>
             <div class="pet-track"><button class="pet" id="pet" type="button" aria-label="Fünkchen streicheln"><span class="pet-sprite" aria-hidden="true"></span></button><span class="pet-reaction" id="pet-reaction" aria-hidden="true"></span></div>
             <button type="button" class="scene-pet-label" id="pet-label"><span data-icon="heart"></span> Streicheln</button>
+            <button id="scene-find" class="scene-find" type="button" hidden><img id="scene-find-image" alt=""></button>
             <div id="scene-keepsake" class="scene-keepsake" hidden></div>
             <div id="scene-companion" class="scene-companion" hidden>
               <button id="scene-egg-button" class="scene-egg-button" type="button" aria-label="Drachenei wärmen" aria-describedby="egg-description" hidden>
@@ -59,6 +60,10 @@
             </div>
             <figcaption><div class="scene-portrait" data-icon="flame"></div><div><strong id="scene-name">Fünkchen</strong><small>DEIN DRACHENFREUND</small></div></figcaption>
           </figure>
+          <div class="nest-tools">
+            <button class="small-button" id="postcard-open" type="button" aria-haspopup="dialog"><span data-icon="camera"></span> Postkarte gestalten</button>
+            <a class="small-button" href="#sammlung/funde" id="nest-finds-link" hidden>Fundstücke ansehen</a>
+          </div>
           <a class="quest panel" id="nest-garden-link" href="#garten">
             <span class="quest-icon" data-icon="gem"></span>
             <span class="quest-text"><small id="quest-kicker">DEIN NÄCHSTES ABENTEUER</small><strong id="quest-title">Auf in den Kristallgarten!</strong><span id="quest-detail">Kombiniere Kristalle und sammle Glutsterne fürs Nest.</span></span>
@@ -86,13 +91,14 @@
     <section id="view-garten" class="view" aria-labelledby="garden-title" hidden>
       <div class="intro"><div class="eyebrow"><span data-icon="gem"></span> MATCH-3 IM FLÜSTERWALD</div><h1 id="garden-title" tabindex="-1">Der <em>Kristallgarten.</em></h1><p>Tausche zwei Nachbarn und bring drei gleiche Kristalle in eine Reihe.</p></div>
       <div class="garden-layout">
-        <section class="panel missions" aria-labelledby="mission-title"><div class="eyebrow">DER WALDPFAD</div><h2 id="mission-title">Abenteuer</h2><div id="mission-list"></div><details class="special-guide"><summary>Spezialkristalle</summary><p>Vier gleiche Kristalle in einer Linie ergeben einen <strong>Funkenstrahl</strong>. Fünf in einer Linie oder eine T- oder L-Form ergeben einen <strong>Sternenfunken</strong>.</p><p>Kombiniere den markierten Kristall erneut. Der Strahl räumt eine ganze Linie, der Sternenfunke ein Feld von 3 × 3.</p></details></section>
+        <section class="panel missions" aria-labelledby="mission-title"><div class="eyebrow">DER WALDPFAD</div><h2 id="mission-title">Abenteuer</h2><div id="mission-list"></div><details class="mastery-guide" id="mastery-guide" hidden><summary id="mastery-summary">Sternabzeichen</summary><ul id="mastery-list"></ul></details><details class="special-guide"><summary>Spezialkristalle</summary><p>Vier gleiche Kristalle in einer Linie ergeben einen <strong>Funkenstrahl</strong>. Fünf in einer Linie oder eine T- oder L-Form ergeben einen <strong>Sternenfunken</strong>.</p><p>Kombiniere den markierten Kristall erneut. Der Strahl räumt eine ganze Linie, der Sternenfunke ein Feld von 3 × 3.</p></details></section>
         <section class="panel play-panel" aria-labelledby="round-title">
           <div id="guide-garden-slot"></div>
           <div id="board-empty" class="board-empty"><div class="empty-gem" data-icon="gem"></div><h2 id="round-title">Das Glutfeld wartet.</h2><p>Hier beginnt deine Schatzsuche. Beim ersten Spiel zeigt dir ein goldener Schimmer einen möglichen Zug.</p><button id="first-round" class="primary" type="button">Glutfeld spielen <span data-icon="arrow"></span></button></div>
           <div id="round" hidden>
             <div class="round-heading"><div><div class="eyebrow">AKTUELLES SPIEL</div><h2 id="active-round-title" tabindex="-1"></h2></div><div class="moves"><strong id="moves-left"></strong><small>ZÜGE ÜBRIG</small></div></div>
             <div id="round-goals" class="round-goals"></div>
+            <p id="mastery-current" class="mastery-current" hidden></p>
             <div id="guide-board-slot"></div>
             <div id="board" class="board" role="grid" aria-label="Kristallspielfeld" aria-describedby="board-instructions"></div>
             <p id="board-instructions" class="sr-only">Wähle mit Pfeiltasten ein Feld und mit Eingabe oder Leertaste einen Kristall. Wähle danach einen Nachbarn. Escape hebt die Auswahl auf.</p>
@@ -117,6 +123,10 @@
 
     <section id="view-sammlung" class="view" aria-labelledby="collection-title" hidden>
       <div class="intro"><div class="eyebrow"><span data-icon="bag"></span> EIN NEST GANZ NACH DEINEM GESCHMACK</div><h1 id="collection-title" tabindex="-1">Deine <em>Sammlung.</em></h1><p>Tausche Glutsterne gegen kleine Schätze für dein Drachennest.</p></div>
+      <section class="panel finds-panel" aria-labelledby="finds-title">
+        <h2 id="finds-title" tabindex="-1">Funde aus dem Kristallgarten</h2>
+        <div id="find-list" class="find-list"></div>
+      </section>
       <div id="shop" class="shop"></div>
     </section>
     <footer aria-hidden="true"><span data-icon="sparkles"></span></footer>
@@ -138,6 +148,15 @@
     </div>
   </aside>
 
+  <dialog id="postcard-dialog" class="panel postcard-dialog" aria-labelledby="postcard-title">
+    <div class="dialog-head"><h2 id="postcard-title">Postkarte aus dem Nest</h2><button class="icon-button" id="postcard-close" type="button" aria-label="Postkarte schließen" data-icon="x"></button></div>
+    <p id="postcard-status" role="status"></p>
+    <img id="postcard-preview" hidden>
+    <div class="dialog-actions">
+      <a id="postcard-download" class="small-button" hidden>PNG speichern</a>
+      <button id="postcard-share" class="primary" type="button" hidden>Bild teilen</button>
+    </div>
+  </dialog>
   <dialog id="story-dialog" class="panel story-dialog" aria-labelledby="story-title" aria-describedby="story-body">
     <div id="story-dialog-art" class="story-dialog-art" aria-hidden="true"></div>
     <div class="story-dialog-content">

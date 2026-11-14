@@ -7,6 +7,9 @@ import { GUIDE_KEY, GUIDE_STEPS, beginGuide, guideEvent, normalizeGuide } from '
 import { STORIES, chooseStory, normalizeStories, recordStoryEvent, storyStatus } from './stories.mjs?v=lebendiges-nest'
 import { FIRST_REWARD_ID, firstRewardAction, rewardItemAction } from './reward.mjs'
 import { companionReaction } from './companion.mjs'
+import { FIND_ITEMS, displayedFind, normalizeFinds, recordGardenFind, setDisplayedFind } from './finds.mjs'
+import { renderPostcard, canSharePostcard, sharePostcard } from './postcard.mjs'
+import { MASTERY_GOALS, normalizeMastery, beginMasteryRound, recordMasteryMove, masteryStatus } from './mastery.mjs'
 
 const $ = (id) => document.getElementById(id)
 const key = 'glutnest.save.v2'
@@ -19,6 +22,7 @@ const paths = {
   ray:'<path d="M3 12h18M7 8l-4 4 4 4m10-8 4 4-4 4"/>',
   home:'<path d="m3 10 9-7 9 7v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 21v-7h6v7"/>',
   gem:'<path d="m3 9 4-5h10l4 5-9 12zM3 9h18M7 4l2 5 3 12 3-12 2-5"/>',
+  camera:'<path d="M4 7h4l2-3h4l2 3h4a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"/><circle cx="12" cy="13" r="3.5"/>',
   bag:'<path d="M5 8h14l2 12H3zM8 8V6a4 4 0 0 1 8 0v2"/><path d="M9 13v1m6-1v1"/>',
   sparkles:'<path d="M10 3 12 9l6 2-6 2-2 6-2-6-6-2 6-2 2-6ZM19 13l1 3 3 1-3 1-1 3-1-3-3-1 3-1 1-3ZM19 3v4m-2-2h4"/>',
   gear:'<circle cx="12" cy="12" r="3"/><path d="m10 3-.7 2.4-2 .9-2.2-.9-2.1 3.7 1.8 1.6v2.6L3 15l2.1 3.6 2.2-.8 2 .8.7 2.4h4l.7-2.4 2-.8 2.2.8L21 15l-1.8-1.7v-2.6L21 9.1l-2.1-3.7-2.2.9-2-.9L14 3z"/>',
@@ -52,10 +56,10 @@ const tileMap = Object.fromEntries(TILES.map(tile => [tile.id, tile]))
 const missionMap = Object.fromEntries(MISSIONS.map(mission => [mission.id, mission]))
 const pages = ['nest', 'garten', 'nestbuch', 'sammlung']
 const storyMap = new Map(STORIES.map(story => [story.id, story]))
-let stories, keepsake, openedStory, storyOpener
+let stories, keepsake, finds, mastery, openedStory, storyOpener
 let page, state, settings, storageOK = true
 let selection = null, focused = 0, hinted = [], playingAnimation = false, pointer = null
-let reactionTimer, toastTimer, tabRefreshTimer
+let reactionTimer, toastTimer, tabRefreshTimer, findFeedbackTimer
 const tiles = []
 let confirmResolve = null
 
@@ -75,11 +79,13 @@ settings = { quiet: load(settingsKey)?.quiet === true }
 function readProgress(savedState) {
   state = normalizeState(savedState)
   stories = normalizeStories(savedState?.stories, state)
+  finds = normalizeFinds(savedState?.finds, state)
+  mastery = normalizeMastery(savedState?.mastery, state)
   keepsake = storyMap.has(savedState?.keepsake) && storyStatus(stories, savedState.keepsake) === 'complete'
     ? savedState.keepsake
     : null
 }
-function saveProgress() { return { ...state, stories, keepsake } }
+function saveProgress() { return { ...state, stories, keepsake, finds, mastery } }
 function persist() {
   storageOK = store(key, saveProgress())
   $('save-note').textContent = storageOK
@@ -470,6 +476,7 @@ function renderNest() {
   const souvenir = keepsake && storyMap.get(keepsake)?.reward
   $('scene-keepsake').hidden = !souvenir
   $('scene-keepsake').textContent = souvenir ? souvenir.symbol + ' ' + souvenir.title : ''
+  renderNestFind()
   const comp = $('scene-companion')
   if (comp.dataset.stage !== stage) {
     comp.dataset.stage = stage
@@ -509,6 +516,7 @@ function doCare(action) {
   persist()
   renderNest()
   if (result.ok) {
+    clearFindReaction()
     $('scene').classList.remove('is-settling')
     react(action)
   }
@@ -517,7 +525,172 @@ function doCare(action) {
   renderGuide(advancesGuide)
   tell(storyMessage(result.message, newStory))
 }
+function renderNestFind() {
+  const item = displayedFind(finds)
+  const button = $('scene-find')
+  button.hidden = !item
+  $('nest-finds-link').hidden = finds.owned.length === 0
+  if (!item) {
+    $('scene-find-image').removeAttribute('src')
+    return
+  }
+  const url = './' + item.asset
+  if ($('scene-find-image').getAttribute('src') !== url) $('scene-find-image').src = url
+  button.setAttribute('aria-label', item.name + ' den Drachen zeigen')
+}
+
+function renderFinds() {
+  const list = $('find-list')
+  list.replaceChildren(...FIND_ITEMS.map(item => {
+    const owned = finds.owned.includes(item.id)
+    const shown = finds.displayed === item.id
+    const card = element('article', '', 'find-card')
+    const art = element('div', '', 'find-art')
+    if (owned) {
+      const image = element('img')
+      image.src = './' + item.asset
+      image.alt = ''
+      art.append(image)
+    } else {
+      art.innerHTML = icon('lock')
+    }
+    const copy = element('div', '', 'find-copy')
+    copy.append(element('h3', item.name), element('p', owned ? item.description : 'Gewinne ' + missionMap[item.missionId].label + '.'))
+    card.append(art, copy)
+    if (owned) {
+      const button = element('button', shown ? 'Weglegen' : 'Im Nest aufstellen', 'small-button')
+      button.type = 'button'
+      button.dataset.find = item.id
+      button.setAttribute('aria-label', item.name + ': ' + button.textContent)
+      copy.append(button)
+      if (shown) {
+        const link = element('a', 'Im Nest ansehen', 'small-button')
+        link.href = '#nest/fund'
+        copy.append(link)
+      }
+    }
+    return card
+  }))
+}
+
+function clearFindReaction() {
+  clearTimeout(findFeedbackTimer)
+  findFeedbackTimer = undefined
+  delete $('scene').dataset.findReaction
+  delete $('scene-companion').dataset.findReaction
+}
+
+function showFindReaction() {
+  const item = displayedFind(finds)
+  if (!item || hatchTransition) return
+  clearFindReaction()
+  const baby = $('scene-companion')
+  clearTimeout(companionFeedbackTimer)
+  delete baby.dataset.reaction
+  const scene = $('scene')
+  void scene.offsetWidth
+  const adult = item.reaction.adult
+  scene.dataset.findReaction = adult.kind
+  let message = adult.message.replaceAll('{name}', () => state.name)
+  if (state.egg.stage === 'hatched') {
+    baby.dataset.findReaction = item.reaction.baby.kind
+    message += ' ' + item.reaction.baby.message
+  }
+  findFeedbackTimer = setTimeout(clearFindReaction, 2400)
+  tell(message)
+}
+
+function showFindDestination() {
+  const target = page === 'sammlung' ? $('finds-title') : $('scene-find')
+  if (target.hidden) return
+  target.focus({ preventScroll:true })
+  target.scrollIntoView({ block:'nearest' })
+  if (page === 'nest') showFindReaction()
+}
+
+$('scene-find').addEventListener('click', showFindReaction)
+$('find-list').addEventListener('click', event => {
+  const button = event.target.closest('[data-find]')
+  if (!button) return
+  const id = button.dataset.find
+  const remove = finds.displayed === id
+  const next = setDisplayedFind(finds, remove ? null : id)
+  if (next === finds) return
+  finds = next
+  persist()
+  renderFinds()
+  const control = Array.from($('find-list').querySelectorAll('[data-find]')).find(item => item.dataset.find === id)
+  if (remove) control?.focus()
+  else control?.nextElementSibling?.focus()
+  tell(remove ? 'Das Fundstück ist wieder in der Sammlung.' : 'Das Fundstück steht im Nest.')
+})
+
+let postcardSession
+function clearPostcard() {
+  if (postcardSession?.url) URL.revokeObjectURL(postcardSession.url)
+  postcardSession = null
+  $('postcard-preview').hidden = true
+  $('postcard-preview').removeAttribute('src')
+  $('postcard-download').hidden = true
+  $('postcard-download').removeAttribute('href')
+  $('postcard-share').hidden = true
+}
+
+$('postcard-open').addEventListener('click', async () => {
+  clearPostcard()
+  const session = {}
+  postcardSession = session
+  $('postcard-status').textContent = 'Deine Postkarte wird gemalt …'
+  $('postcard-dialog').showModal()
+  const item = displayedFind(finds)
+  const reward = keepsake && storyMap.get(keepsake)?.reward
+  const scene = $('scene')
+  const pose = scene.classList.contains('is-resting') || scene.classList.contains('is-settling') ? 'rest' : scene.dataset.action === 'cuddle' ? 'cuddle' : 'awake'
+  try {
+    const card = await renderPostcard({
+      name: state.name,
+      pose,
+      egg: state.egg.stage,
+      warmth: state.egg.warmth,
+      equipped: [...state.equipped],
+      find: item ? { id:item.id, label:item.name } : null,
+      keepsake: reward || null,
+    })
+    if (postcardSession !== session || !$('postcard-dialog').open) return
+    session.card = card
+    session.url = URL.createObjectURL(card.blob)
+    const preview = $('postcard-preview')
+    preview.src = session.url
+    preview.alt = card.alt
+    preview.hidden = false
+    const download = $('postcard-download')
+    download.href = session.url
+    download.download = card.filename
+    download.hidden = false
+    $('postcard-share').hidden = !canSharePostcard(card)
+    $('postcard-status').textContent = $('postcard-share').hidden ? 'Die Postkarte ist fertig. Du kannst das Bild als PNG speichern.' : 'Die Postkarte ist fertig.'
+  } catch {
+    if (postcardSession === session && $('postcard-dialog').open) $('postcard-status').textContent = 'Das Bild konnte nicht erstellt werden. Öffne die Postkarte erneut.'
+  }
+})
+$('postcard-close').addEventListener('click', () => $('postcard-dialog').close())
+$('postcard-dialog').addEventListener('close', () => {
+  if (!$('postcard-dialog').open) clearPostcard()
+})
+$('postcard-share').addEventListener('click', async () => {
+  if (!postcardSession?.card) return
+  const session = postcardSession
+  try {
+    await sharePostcard(session.card)
+  } catch (error) {
+    if (error?.name !== 'AbortError' && session === postcardSession && $('postcard-dialog').open) {
+      $('postcard-status').textContent = 'Teilen ist gerade nicht möglich. Du kannst die Postkarte als PNG speichern.'
+    }
+  }
+})
+
 function renderShop() {
+  renderFinds()
   const active = document.activeElement?.dataset.shop
   $('shop').innerHTML = SHOP.map(item => {
     const owned = state.owned.includes(item.id)
@@ -540,12 +713,29 @@ function describeGoal(mission) {
   if (mission.targetSpecials) goals.push(mission.targetSpecials + ' Spezialkristalle zünden')
   return goals.join(' · ')
 }
+function renderMasteryBook() {
+  const goals = MISSIONS.filter(mission => state.progress.wins.includes(mission.id) && MASTERY_GOALS[mission.id])
+  $('mastery-guide').hidden = !goals.length
+  $('mastery-summary').textContent = 'Sternabzeichen (' + mastery.earned.length + '/' + Object.keys(MASTERY_GOALS).length + ')'
+  $('mastery-list').replaceChildren(...goals.map(mission => {
+    const goal = MASTERY_GOALS[mission.id]
+    const earned = mastery.earned.includes(mission.id)
+    const row = element('li')
+    row.append(element('strong', (earned ? '✦ ' : '') + mission.label + ' · ' + goal.title),
+      element('span', earned ? 'Verdient' : goal.description))
+    return row
+  }))
+}
+
 function renderMissions() {
+  renderMasteryBook()
   const focusId = document.activeElement?.dataset.mission
   $('mission-list').innerHTML = MISSIONS.map((mission, index) => {
     const unlocked = isMissionUnlocked(state, mission.id)
     const won = state.progress.wins.includes(mission.id)
-    return '<button type="button" class="mission" data-mission="' + mission.id + '" ' + (unlocked ? '' : 'disabled ') + (state.round?.missionId === mission.id ? 'aria-current="true" ' : '') + '><span class="mission-index">' + (unlocked ? '0' + (index + 1) : icon('lock')) + '</span><span><strong>' + mission.label + '</strong><small>' + (unlocked ? describeGoal(mission) : mission.id === 'gluehlichtung' ? 'Nachdem Knöpfchen schlüpft' : 'Nach ' + MISSIONS[index - 1].label) + '</small></span><span class="mission-end">' + icon(won ? 'check' : unlocked ? 'arrow' : 'lock') + '</span></button>'
+    const medalGoal = won && MASTERY_GOALS[mission.id]
+    const medalNote = medalGoal ? ' · ' + (mastery.earned.includes(mission.id) ? 'Abzeichen verdient' : 'Sternabzeichen möglich') : ''
+    return '<button type="button" class="mission" data-mission="' + mission.id + '" ' + (unlocked ? '' : 'disabled ') + (state.round?.missionId === mission.id ? 'aria-current="true" ' : '') + '><span class="mission-index">' + (unlocked ? '0' + (index + 1) : icon('lock')) + '</span><span><strong>' + mission.label + '</strong><small>' + (unlocked ? describeGoal(mission) : mission.id === 'gluehlichtung' ? 'Nachdem Knöpfchen schlüpft' : 'Nach ' + MISSIONS[index - 1].label) + medalNote + '</small></span><span class="mission-end">' + icon(won ? 'check' : unlocked ? 'arrow' : 'lock') + '</span></button>'
   }).join('')
   if (focusId) $('mission-list').querySelector('[data-mission="' + focusId + '"]')?.focus({ preventScroll: true })
 }
@@ -613,6 +803,12 @@ function renderRound(reward = null) {
   $('round-goals').innerHTML = targets.map(([symbol,id,value,goal,label]) =>
     '<span class="goal" data-gem="' + id + '">' + icon(value >= goal ? 'check' : symbol) + label + ': <strong>' + Math.min(value, goal) + ' / ' + goal + '</strong></span>').join('')
   drawBoard(round.board, round.specials)
+  const masteryGoal = masteryStatus(mastery, state)
+  $('mastery-current').hidden = !masteryGoal
+  const medalProgress = masteryGoal?.goal.id === 'glutfeld'
+    ? masteryGoal.progress + ' Züge übrig'
+    : masteryGoal ? masteryGoal.progress + ' von ' + masteryGoal.target : ''
+  $('mastery-current').textContent = masteryGoal ? masteryGoal.goal.title + ': ' + masteryGoal.goal.description + ' (' + medalProgress + ')' : ''
   const done = round.status !== 'playing'
   $('hint').disabled = done || playingAnimation
   $('round-result').hidden = !done
@@ -621,16 +817,20 @@ function renderRound(reward = null) {
     const nextMission = MISSIONS[MISSIONS.indexOf(mission) + 1]
     const next = won && nextMission && isMissionUnlocked(state, nextMission.id) ? nextMission : null
     const text = !won ? 'Zwei Glutsterne nimmst du trotzdem mit.' : reward?.eggFound ? 'Du hast ein Drachenei gefunden! Im Nest kannst du es wärmen.' : reward ? 'Du hast ' + reward.glow + ' Glutsterne gesammelt.' : 'Dein Fortschritt und deine Belohnung sind gespeichert.'
+    const find = won && FIND_ITEMS.find(item => item.missionId === mission.id && finds.owned.includes(item.id))
+    const findLink = find ? '<div class="find-win"><img src="./' + find.asset + '" alt=""><div><strong>' + find.name + '</strong><a class="small-button" href="' + (finds.displayed === find.id ? '#nest/fund' : '#sammlung/funde') + '">' + (finds.displayed === find.id ? 'Fund im Nest ansehen' : 'Zu den Fundstücken') + '</a></div></div>' : ''
+    const medal = reward?.medal ? '<p class="medal-win">✦ Sternabzeichen: ' + reward.medal.title + '</p>' : ''
     const furnishing = firstRewardAction(state)
     const furnishingLink = furnishing ? '<a class="primary" href="#sammlung/mooskissen">' + furnishing.label + '</a>' : ''
-    $('round-result').innerHTML = '<strong>' + (won ? 'Geschafft!' : 'Die Runde ist zu Ende.') + '</strong><p>' + text + '</p>' + furnishingLink + (next ? '<button class="' + (furnishing ? 'small-button' : 'primary') + '" type="button" data-next="' + next.id + '">' + next.label + ' spielen</button>' : won && state.egg.stage === 'egg' ? '<a class="primary" href="#nest">Zum Drachenei</a>' : '') + '<button class="small-button" type="button" data-retry="' + mission.id + '">Noch einmal</button>'
+    $('round-result').innerHTML = '<strong>' + (won ? 'Geschafft!' : 'Die Runde ist zu Ende.') + '</strong><p>' + text + '</p>' + medal + findLink + furnishingLink + (next ? '<button class="' + (furnishing ? 'small-button' : 'primary') + '" type="button" data-next="' + next.id + '">' + next.label + ' spielen</button>' : won && state.egg.stage === 'egg' ? '<a class="primary" href="#nest">Zum Drachenei</a>' : '') + '<button class="small-button" type="button" data-retry="' + mission.id + '">Noch einmal</button>'
   }
 }
 function renderGarden() { renderMissions(); if (!playingAnimation) renderRound() }
 function route(focusHeading = false) {
   const hash = location.hash.slice(1)
   const cushionRoute = hash === 'sammlung/mooskissen' || hash === 'nest/mooskissen'
-  const requested = cushionRoute ? hash.split('/')[0] : hash
+  const findRoute = hash === 'sammlung/funde' || hash === 'nest/fund'
+  const requested = cushionRoute || findRoute ? hash.split('/')[0] : hash
   page = pages.includes(requested) ? requested : 'nest'
   for (const id of pages) {
     $('view-' + id).hidden = id !== page
@@ -640,6 +840,7 @@ function route(focusHeading = false) {
   }
   if (page !== 'nest') {
     endHatch(false)
+    clearFindReaction()
     $('scene').classList.remove('is-settling')
   }
   if (page === 'nest') renderNest()
@@ -650,8 +851,9 @@ function route(focusHeading = false) {
     $('view-' + page).querySelector('h1').focus({ preventScroll: true })
     window.scrollTo({ top: 0, behavior: 'instant' })
   }
-  renderGuide(focusHeading && !cushionRoute)
+  renderGuide(focusHeading && !cushionRoute && !findRoute)
   if (cushionRoute) showCushionDestination()
+  if (findRoute && focusHeading) showFindDestination()
 }
 
 function showCushionDestination() {
@@ -709,6 +911,7 @@ async function begin(id, replace = false) {
   const result = startRound(state, id)
   if (!result.ok) { tell(result.message); return }
   state = result.state
+  mastery = beginMasteryRound(mastery, state)
   selection = null; focused = 0; hinted = []
   persist()
   renderGarden()
@@ -748,6 +951,10 @@ async function chooseTile(index) {
   playingAnimation = true
   $('hint').disabled = true
   state = result.state
+  const discovery = recordGardenFind(finds, state)
+  finds = discovery.finds
+  const medal = recordMasteryMove(mastery, state, result.summary)
+  mastery = medal.mastery
   const previousGuideStep = guide.step
   setGuide({ type:'move-committed', from, to:index })
   if (previousGuideStep === 'pair' && guide.step === 'reward') guideMatchPoints = result.summary.score
@@ -766,7 +973,7 @@ async function chooseTile(index) {
   playingAnimation = false
   if (page === 'garten') {
     renderMissions()
-    renderRound(result.summary)
+    renderRound({ ...result.summary, medal:medal.earned })
     if (result.summary.activatedSpecials) {
       $('board-help').textContent = 'Gezündete Spezialkristalle: ' + result.summary.activatedSpecials
     } else if (result.summary.createdSpecials) {
@@ -787,7 +994,10 @@ async function chooseTile(index) {
   if (page === 'nestbuch') renderBook()
   if (page === 'sammlung') renderShop()
   renderGuide(previousGuideStep === 'pair' && guide.step === 'reward')
-  tell(storyMessage(result.message, newStory))
+  let message = result.message
+  if (discovery.discovered) message += ' Gefunden: ' + discovery.discovered.name + '.'
+  if (medal.earned) message += ' Sternabzeichen: ' + medal.earned.title + '.'
+  tell(storyMessage(message, newStory))
 }
 
 $('board').addEventListener('keydown', event => {
@@ -871,6 +1081,7 @@ function interactWithEgg(event) {
   const inScene = event.currentTarget === $('scene-egg-button')
   if (state.egg.stage === 'hatched') {
     const baby = $('scene-companion')
+    clearFindReaction()
     const reaction = companionReaction(state, companionPlays++)
     delete baby.dataset.reaction
     void baby.offsetWidth
@@ -964,6 +1175,7 @@ $('save-file').addEventListener('change', async () => {
   } catch { $('settings-status').textContent = 'Diese Datei ist keine gültige Glutnest-Sicherung.'; return }
   if (playingAnimation || !await confirm('Spielstand einspielen?', 'Die Sicherung ersetzt den Spielstand in diesem Browser.', 'Einspielen')) return
   endHatch(false)
+  clearFindReaction()
   readProgress(data.state)
   setGuide({ type:'skip' })
   settings.quiet = data.settings?.quiet === true

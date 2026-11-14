@@ -440,3 +440,120 @@ html[data-quiet=true] *,html[data-quiet=true] *::before,html[data-quiet=true] *:
   .scene-moss-cushion { top: 77%; }
   .scene.has-moss-cushion .pet-track { top: 54%; }
 }
+.nest-tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.nest-tools a, .nest-tools button { min-height: 44px; }
+.scene-find {
+  position: absolute;
+  z-index: 4;
+  left: 24%;
+  bottom: 14%;
+  width: clamp(49px, 13%, 100px);
+  aspect-ratio: 1;
+  translate: -50% 0;
+  border: 0;
+  padding: 1px;
+  border-radius: 40%;
+  background: none;
+  touch-action: manipulation;
+}
+.scene-find img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 4px #21101bba);
+}
+.scene-find:hover img { filter: drop-shadow(0 3px 6px #f2b369b8) brightness(1.10); }
+.scene-find:focus-visible { outline: 2px dashed #ffdaa8; outline-offset: 0; }
+.scene[data-find-reaction] .pet-track { animation: none; }
+.scene[data-find-reaction] .pet-sprite {
+  background-image: url(./assets/dragon-blink.webp);
+  animation: none;
+}
+.scene[data-find-reaction="sniff"] .pet { animation: find-sniff 2s ease both; }
+.scene[data-find-reaction="wonder"] .pet { animation: find-wonder 2s ease both; }
+.scene-companion.baby[data-find-reaction="nudge"] .scene-egg-sprite { animation: find-nudge 2.1s ease both; }
+.scene-companion.baby[data-find-reaction="flutter"] .scene-egg-sprite { animation: find-flutter 2.1s ease both; }
+.scene[data-find-reaction="sniff"] .scene-find img { filter: drop-shadow(0 1px 6px #97e4e4a8); }
+.scene[data-find-reaction="wonder"] .scene-find img { filter: drop-shadow(0 1px 8px #f3a365c0); }
+@keyframes find-sniff {
+  0%, 100% { transform: none; }
+  27%, 57% { transform: translate(-23%, 8%) rotate(-8deg) scale(.99,.94); }
+  42%, 68% { transform: translate(-22%, 11%) rotate(-10deg) scale(.99,.92); }
+}
+@keyframes find-wonder {
+  0%, 100% { transform: none; }
+  24% { transform: translate(-8%, 2%) rotate(-7deg); }
+  45%, 66% { transform: translate(-16%, -3%) rotate(8deg) scale(1.04); }
+}
+@keyframes find-nudge {
+  0%, 100% { transform: none; }
+  32%, 55% { transform: translate(-185%, 4%) rotate(-6deg) scale(.96); }
+  47%, 63% { transform: translate(-198%, 7%) rotate(-12deg) scale(.94); }
+}
+@keyframes find-flutter {
+  0%, 100% { transform: none; }
+  24% { transform: translate(-62%,-16%) rotate(-12deg); }
+  45%, 62% { transform: translate(-181%,-18%) rotate(12deg); }
+  53% { transform: translate(-192%,-32%) rotate(-7deg); }
+  79% { transform: translate(-39%,-14%) rotate(8deg); }
+}
+.finds-panel { padding: 16px; margin-bottom: 14px; }
+.finds-panel h2 { font-size: 26px; margin: 0 0 11px; }
+.find-list { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+.find-card, .find-win { display: flex; gap: 11px; align-items: center; }
+.find-card { padding: 9px; background: #33263b; border: 1px solid #62485c; border-radius: 12px; }
+.find-art { display: grid; place-items: center; flex: none; width: 65px; height: 65px; color: #dec5e2; }
+.find-art img, .find-win img { width: 100%; height: 100%; object-fit: contain; }
+.find-copy h3 { font-size: 20px; color: #ffdfc7; }
+.find-copy p { font-size: 12px; line-height: 1.4; margin: 3px 0 5px; color: var(--muted); }
+.find-copy button, .find-copy a { min-height: 44px; margin: 4px 5px 0 0; }
+.find-win { margin: 8px 0; padding: 7px; background: #2f2639; border-radius: 10px; }
+.find-win img { flex: none; width: 58px; height: 58px; }
+.find-win strong { margin: 0; }
+.postcard-dialog {
+  padding: 15px;
+  width: min(680px, calc(100% - 26px));
+  max-height: calc(100% - 30px);
+  color: var(--cream);
+}
+.postcard-dialog::backdrop { background: #170e1cd6; }
+.postcard-dialog h2 { font-size: clamp(23px, 4vw, 34px); line-height: 1.05; margin: 6px 0 9px; }
+#postcard-status:not(:empty) { margin: 8px 0; color: var(--muted); font-size: 13px; }
+#postcard-preview { display: block; width: 100%; height: auto; border-radius: 10px; }
+.postcard-dialog .dialog-actions a, .postcard-dialog .dialog-actions button { min-height: 44px; }
+@media (max-width:665px) {
+  .nest-tools { order: 1; width: 100%; }
+  .find-list { grid-template-columns: 1fr; }
+  .scene-find { left: 21%; }
+}
+.scene-companion.baby[data-find-reaction] { z-index: 5; }
+.scene[data-find-reaction="sniff"]:has(.baby[data-find-reaction="nudge"]) .scene-find img {
+  animation: pebble-nudge 2.1s ease both;
+}
+.scene[data-find-reaction="wonder"]:has(.baby[data-find-reaction="flutter"]) .scene-find img {
+  transform-origin: 27% 75%;
+  animation: feather-wiggle 2.1s ease both;
+}
+@keyframes pebble-nudge {
+  0%, 46%, 100% { transform: none; }
+  59%, 77% { transform: translateX(-12%) rotate(-10deg); }
+}
+@keyframes feather-wiggle {
+  0%, 43%, 100% { transform: none; }
+  53% { transform: rotate(10deg); }
+  63% { transform: rotate(-7deg); }
+  73% { transform: rotate(5deg); }
+}
+.mastery-guide { margin-top: 12px; color: var(--cream); }
+.mastery-guide summary { cursor: pointer; min-height: 42px; align-content: center; color: #ffdaaa; font-size: 13px; font-weight: 700; }
+.mastery-guide ul { list-style: none; margin: 0; padding: 0; }
+.mastery-guide li { padding: 8px 0; border-top: 1px solid #6a4d65; font-size: 12px; }
+.mastery-guide li span { display: block; margin-top: 2px; color: var(--muted); }
+.mastery-current { margin: 0 0 9px; padding: 7px 9px; border-radius: 8px; background: #52394d; color: #ffe0b5; font-size: 12px; line-height: 1.4; }
+.round-result p.medal-win { color: #ffdaa0; font-weight: 750; }
