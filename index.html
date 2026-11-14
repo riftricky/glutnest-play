@@ -10,8 +10,8 @@
   <link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="stylesheet" href="./style.css?v=waldnest-2">
-  <script type="module" src="./app.mjs?v=waldnest-2"></script>
+  <link rel="stylesheet" href="./style.css?v=nest-gestalten">
+  <script type="module" src="./app.mjs?v=nest-gestalten"></script>
 </head>
 <body>
   <a class="skip" href="#main">Zum Spiel</a>
@@ -36,11 +36,26 @@
       <div id="guide-nest-slot"></div>
       <div class="nest-layout">
         <div class="left-stack">
+          <section class="panel layout-panel" id="nest-layout-tools" aria-label="Nest gestalten" hidden>
+            <p id="nest-layout-help">Zieh einen Gegenstand oder wähle ihn aus und tippe auf einen freien Platz. Mit den Pfeilen kannst du ihn genauer verschieben.</p>
+            <div class="layout-controls">
+              <label for="nest-layout-item">Gegenstand</label>
+              <select id="nest-layout-item"></select>
+              <div class="layout-arrows" id="nest-layout-arrows" role="group" aria-label="Gegenstand verschieben">
+                <button class="small-button" type="button" data-layout-move="left" aria-label="Nach links">←</button>
+                <button class="small-button" type="button" data-layout-move="up" aria-label="Nach oben">↑</button>
+                <button class="small-button" type="button" data-layout-move="down" aria-label="Nach unten">↓</button>
+                <button class="small-button" type="button" data-layout-move="right" aria-label="Nach rechts">→</button>
+              </div>
+              <button class="small-button" type="button" id="nest-layout-reset">Ausgangsplatz</button>
+            </div>
+            <p class="sr-only" id="nest-layout-status" role="status"></p>
+          </section>
           <figure class="scene" id="scene" aria-label="Fünkchens Nest">
             <div class="scene-bg"></div><div class="scene-light"></div>
             <div class="star-light" aria-hidden="true"></div>
             <span class="star-light-pattern" aria-hidden="true"><i></i><i></i><i></i></span>
-            <button type="button" class="scene-star-lantern" id="scene-star-lantern" aria-describedby="star-lantern-copy" hidden><img src="./assets/star-lantern.webp" alt=""></button>
+            <button type="button" class="scene-star-lantern" id="scene-star-lantern" data-layout-id="star-lantern" aria-describedby="star-lantern-copy" hidden><img src="./assets/star-lantern.webp" alt=""></button>
             <div class="scene-top"><span class="scene-tag"><i></i> DAS WALDNEST</span><span class="scene-tag quiet" id="scene-time"></span></div>
             <div class="embers" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
             <div class="den-decor" id="den-decor"></div>
@@ -69,6 +84,7 @@
             <a class="small-button" href="#garten/lichtsuche" id="star-light-quests">Weitere Lichter finden</a>
           </section>
           <div class="nest-tools">
+            <button class="small-button" id="nest-layout-toggle" type="button" aria-expanded="false" aria-controls="nest-layout-tools" hidden>Nest gestalten</button>
             <button class="small-button" id="postcard-open" type="button" aria-haspopup="dialog"><span data-icon="camera"></span> Postkarte gestalten</button>
             <a class="small-button" href="#sammlung/funde" id="nest-finds-link" hidden>Fundstücke ansehen</a>
           </div>
@@ -167,16 +183,13 @@
       <button id="postcard-share" class="primary" type="button" hidden>Bild teilen</button>
     </div>
   </dialog>
-  <dialog id="story-dialog" class="panel story-dialog" aria-labelledby="story-title" aria-describedby="story-body">
-    <div id="story-dialog-art" class="story-dialog-art" aria-hidden="true"></div>
-    <div class="story-dialog-content">
-      <div class="dialog-head"><h2 id="story-title" tabindex="-1"></h2><button class="icon-button" id="close-story" type="button" aria-label="Geschichte schließen" data-icon="x"></button></div>
-      <p id="story-body"></p>
-      <p id="story-ending" tabindex="-1" hidden></p>
-      <div id="story-keepsake" class="story-keepsake" hidden></div>
-      <div id="story-choices" class="story-choices"></div>
-      <button class="small-button" id="story-display" type="button" hidden>Im Nest zeigen</button>
-    </div>
+
+  <dialog id="story-dialog" class="panel story-dialog" aria-labelledby="story-dialog-title">
+    <h2 id="story-dialog-title" class="sr-only">Nestbuch</h2>
+    <div class="story-close-row"><button class="icon-button" id="close-story" type="button" aria-label="Nestbuch schließen" data-icon="x"></button></div>
+    <div id="story-pages"></div>
+    <p id="story-continuation" class="story-continuation" hidden></p>
+    <p id="story-reader-announcement" class="sr-only" role="status"></p>
   </dialog>
   <dialog id="settings-dialog" class="panel settings-dialog" aria-labelledby="settings-title">
     <form id="settings-form">

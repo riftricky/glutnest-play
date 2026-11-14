@@ -2,14 +2,15 @@ import {
   BOARD_SIZE, CARE, MISSIONS, SHOP, SPECIALS, TILES, buyItem, care, careForEgg,
   getHint, getLevel, getMood, isMissionUnlocked, normalizeState,
   playMove, renameDragon, startRound, tick, toggleItem,
-} from './game.mjs?v=waldnest-2'
-import { GUIDE_KEY, beginGuide, guideEvent, nestJourney, normalizeGuide } from './guide.mjs?v=waldnest-2'
-import { STORIES, chooseStory, normalizeStories, recordStoryEvent, storyStatus } from './stories.mjs?v=lebendiges-nest'
+} from './game.mjs?v=nest-gestalten'
+import { GUIDE_KEY, beginGuide, guideEvent, nestJourney, normalizeGuide } from './guide.mjs?v=nest-gestalten'
+import { STORIES, chooseStory, nextUnreadStory, normalizeStories, recordStoryEvent, storyStatus } from './stories.mjs?v=nest-gestalten'
 import { FIRST_REWARD_ID, firstRewardAction, rewardItemAction } from './reward.mjs'
 import { companionReaction } from './companion.mjs'
 import { NEST_FURNISHINGS, nestFurnishing } from './decor.mjs'
+import { normalizeLayout, furnishingPosition, moveFurnishing, resetFurnishing } from './layout.mjs'
 import { FIND_ITEMS, displayedFind, normalizeFinds, recordGardenFind, setDisplayedFind } from './finds.mjs'
-import { renderPostcard, canSharePostcard, sharePostcard } from './postcard.mjs?v=waldnest-2'
+import { renderPostcard, canSharePostcard, sharePostcard } from './postcard.mjs?v=nest-gestalten'
 import { LANTERN_LIGHTS, normalizeLantern, beginLanternRound, recordLanternMove, lanternStatus, selectLanternLight, availableLanternLights, selectedLanternLight } from './lantern.mjs'
 import { MASTERY_GOALS, normalizeMastery, beginMasteryRound, recordMasteryMove, masteryStatus } from './mastery.mjs'
 
@@ -58,8 +59,11 @@ const tileMap = Object.fromEntries(TILES.map(tile => [tile.id, tile]))
 const missionMap = Object.fromEntries(MISSIONS.map(mission => [mission.id, mission]))
 const pages = ['nest', 'garten', 'nestbuch', 'sammlung']
 const storyMap = new Map(STORIES.map(story => [story.id, story]))
-let stories, keepsake, finds, mastery, lantern, openedStory, storyOpener
-let page, state, settings, storageOK = true
+let stories, keepsake, finds, mastery, lantern
+let storyReading = false
+let storyOpener = null
+let page, state, settings, nestLayout, storageOK = true
+let layoutEditing = false, layoutSelected = '', layoutDrag = null, suppressLayoutClick = false
 let selection = null, focused = 0, hinted = [], playingAnimation = false, pointer = null
 let reactionTimer, toastTimer, tabRefreshTimer, findFeedbackTimer, lanternFeedbackTimer, furnishingFeedbackTimer
 const tiles = []
@@ -82,13 +86,14 @@ function readProgress(savedState) {
   state = normalizeState(savedState)
   stories = normalizeStories(savedState?.stories, state)
   finds = normalizeFinds(savedState?.finds, state)
+  nestLayout = normalizeLayout(savedState?.nestLayout)
   mastery = normalizeMastery(savedState?.mastery, state)
   lantern = normalizeLantern(savedState?.lantern, mastery, state)
   keepsake = storyMap.has(savedState?.keepsake) && storyStatus(stories, savedState.keepsake) === 'complete'
     ? savedState.keepsake
     : null
 }
-function saveProgress() { return { ...state, stories, keepsake, finds, mastery, lantern } }
+function saveProgress() { return { ...state, stories, keepsake, finds, mastery, lantern, nestLayout } }
 function persist() {
   storageOK = store(key, saveProgress())
   $('save-note').textContent = storageOK
@@ -168,7 +173,7 @@ function storyButton(story, label, className) {
 function renderBook() {
   renderBookLink()
   $('book-progress').textContent = countStories('complete') + ' von ' + STORIES.length + ' Geschichten gelesen'
-  const ready = STORIES.find(story => storyStatus(stories, story.id) === 'ready')
+  const ready = nextUnreadStory(stories)
   const locked = STORIES.find(story => storyStatus(stories, story.id) === 'locked')
   const feature = $('book-feature')
   feature.replaceChildren()
@@ -209,67 +214,158 @@ function renderBook() {
   })
   $('story-list').replaceChildren(...cards)
 }
-function paintStory() {
-  const story = openedStory
-  if (!story) return
-  $('story-title').textContent = story.title
-  $('story-body').textContent = story.body.replaceAll('{name}', state.name)
-  $('story-dialog-art').dataset.art = story.art
-  $('story-dialog-art').style.backgroundImage = 'url("' + storyArt[story.art] + '")'
+function createStoryPage(story) {
+  const chapter = element('article', '', 'story-page')
+  chapter.dataset.storyPage = story.id
+  chapter.setAttribute('aria-labelledby', 'story-heading-' + story.id)
+
+  const art = element('div', '', 'story-dialog-art')
+  art.dataset.art = story.art
+  art.style.backgroundImage = 'url("' + storyArt[story.art] + '")'
+  art.setAttribute('aria-hidden', 'true')
+
+  const content = element('div', '', 'story-dialog-content')
+  const heading = element('h3', story.title)
+  heading.id = 'story-heading-' + story.id
+  heading.dataset.storyHeading = ''
+  heading.tabIndex = -1
+
   const chosen = story.choices.find(choice => choice.id === stories.completed[story.id])
-  $('story-ending').hidden = !chosen
-  $('story-ending').textContent = chosen ? chosen.ending.replaceAll('{name}', state.name) : ''
-  $('story-keepsake').hidden = !chosen
-  $('story-keepsake').textContent = chosen ? story.reward.symbol + ' Andenken: ' + story.reward.title : ''
-  $('story-display').hidden = !chosen
-  $('story-display').textContent = keepsake === story.id ? 'Aus dem Nest nehmen' : 'Im Nest zeigen'
-  $('story-display').setAttribute('aria-pressed', String(keepsake === story.id))
-  const choices = chosen ? [] : story.choices.map(choice => {
-    const button = element('button', choice.label, 'small-button')
-    button.type = 'button'
-    button.dataset.choice = choice.id
-    return button
-  })
-  $('story-choices').replaceChildren(...choices)
+  chapter.dataset.publishedChoice = chosen?.id ?? ''
+  content.append(heading, element('p', story.body.replaceAll('{name}', () => state.name)))
+  if (chosen) {
+    const ending = element('p', chosen.ending.replaceAll('{name}', () => state.name), 'story-ending')
+    ending.dataset.storyEnding = ''
+    ending.tabIndex = -1
+    const keepsakeLine = element('div', story.reward.symbol + ' Andenken: ' + story.reward.title, 'story-keepsake')
+    const display = element('button', '', 'small-button story-display')
+    display.type = 'button'
+    display.dataset.storyDisplay = story.id
+    content.append(ending, keepsakeLine, display)
+  } else {
+    const choices = element('div', '', 'story-choices')
+    for (const choice of story.choices) {
+      const button = element('button', choice.label, 'small-button')
+      button.type = 'button'
+      button.dataset.choice = choice.id
+      choices.append(button)
+    }
+    content.append(choices)
+  }
+  chapter.dataset.dragonName = state.name
+  chapter.append(art, content)
+  return chapter
 }
+
+function renderStoryKeepsakeButtons() {
+  for (const display of $('story-pages').querySelectorAll('[data-story-display]')) {
+    const shown = keepsake === display.dataset.storyDisplay
+    display.textContent = shown ? 'Aus dem Nest nehmen' : 'Im Nest zeigen'
+    display.setAttribute('aria-pressed', String(shown))
+  }
+}
+
+function continueStory() {
+  if (!storyReading) return
+  const pages = $('story-pages')
+  const current = pages.lastElementChild?.dataset.storyPage
+  if (!current || storyStatus(stories, current) !== 'complete') return
+  const following = nextUnreadStory(stories, current)
+  const note = $('story-continuation')
+  note.hidden = !!following
+  if (following) {
+    pages.append(createStoryPage(following))
+    $('story-reader-announcement').textContent = 'Die nächste Geschichte ist geöffnet. ' + following.title
+  } else {
+    note.textContent = countStories('locked')
+      ? 'Neue Geschichten warten auf deine nächsten Entdeckungen.'
+      : 'Du hast alle Geschichten gelesen.'
+    $('story-reader-announcement').textContent = note.textContent
+  }
+}
+
+function refreshStoryReader() {
+  const pages = $('story-pages')
+  for (const chapter of [...pages.children]) {
+    const id = chapter.dataset.storyPage
+    if (storyStatus(stories, id) === 'locked') {
+      chapter.remove()
+    } else if (chapter.dataset.publishedChoice !== (stories.completed[id] ?? '') ||
+        chapter.dataset.dragonName !== state.name) {
+      const containedFocus = chapter.contains(document.activeElement)
+      const updated = createStoryPage(storyMap.get(id))
+      chapter.replaceWith(updated)
+      if (containedFocus) {
+        const target = updated.querySelector('[data-story-ending]') ?? updated.querySelector('[data-story-heading]')
+        target.focus({ preventScroll:true })
+      }
+    }
+  }
+  if (!pages.firstElementChild) {
+    $('story-dialog').close()
+    return
+  }
+  continueStory()
+  renderStoryKeepsakeButtons()
+}
+
 function openStory(story, opener) {
-  if (storyStatus(stories, story.id) === 'locked') return
-  storyOpener = opener
-  openedStory = story
-  paintStory()
-  $('story-dialog').showModal()
-  $('story-title').focus()
+  const status = storyStatus(stories, story.id)
+  if (status === 'locked') return
+  storyReading = status === 'ready'
+  storyOpener = { id:story.id, featured:opener.closest('#book-feature') !== null }
+  $('story-continuation').hidden = true
+  $('story-reader-announcement').textContent = ''
+  const chapter = createStoryPage(story)
+  $('story-pages').replaceChildren(chapter)
+  renderStoryKeepsakeButtons()
+  const dialog = $('story-dialog')
+  dialog.showModal()
+  chapter.querySelector('[data-story-heading]').focus({ preventScroll:true })
+  dialog.scrollTop = 0
 }
+
 $('view-nestbuch').addEventListener('click', event => {
   const button = event.target.closest('[data-story]')
   const story = button && storyMap.get(button.dataset.story)
   if (story) openStory(story, button)
 })
-$('story-choices').addEventListener('click', event => {
-  const button = event.target.closest('[data-choice]')
-  if (!button || !openedStory) return
-  const result = chooseStory(stories, openedStory.id, button.dataset.choice)
-  if (!result.ok) return
-  stories = result.stories
-  persist()
-  paintStory()
-  $('story-ending').focus()
-})
-$('story-display').addEventListener('click', () => {
-  if (!openedStory || storyStatus(stories, openedStory.id) !== 'complete') return
-  keepsake = keepsake === openedStory.id ? null : openedStory.id
-  persist()
-  paintStory()
+$('story-pages').addEventListener('click', event => {
+  const chapter = event.target.closest('[data-story-page]')
+  if (!chapter) return
+  const id = chapter.dataset.storyPage
+  const choice = event.target.closest('[data-choice]')
+  if (choice) {
+    const result = chooseStory(stories, id, choice.dataset.choice)
+    if (!result.ok) return
+    stories = result.stories
+    persist()
+    renderBookLink()
+    const completed = createStoryPage(storyMap.get(id))
+    chapter.replaceWith(completed)
+    continueStory()
+    renderStoryKeepsakeButtons()
+    completed.querySelector('[data-story-ending]').focus()
+  } else if (event.target.closest('[data-story-display]') && storyStatus(stories, id) === 'complete') {
+    keepsake = keepsake === id ? null : id
+    persist()
+    renderStoryKeepsakeButtons()
+  }
 })
 $('close-story').addEventListener('click', () => $('story-dialog').close())
 $('story-dialog').addEventListener('close', () => {
-  const id = openedStory?.id
-  openedStory = null
+  if ($('story-dialog').open) return
+  $('story-pages').replaceChildren()
+  const opener = storyOpener
+  storyOpener = null
+  storyReading = false
   if (page !== 'nestbuch') return
-  const oldButton = storyOpener
   renderBook()
-  if (oldButton?.isConnected) oldButton.focus()
-  else if (id) $('story-list').querySelector('[data-story="' + id + '"]')?.focus()
+  const selector = opener && '[data-story="' + opener.id + '"]'
+  const featured = opener?.featured ? $('book-feature').querySelector(selector) : null
+  const card = opener && $('story-list').querySelector(selector)
+  const focusTarget = featured ?? card ?? $('book-title')
+  focusTarget.focus()
 })
 
 function setGuide(event) {
@@ -532,6 +628,7 @@ function renderNest() {
   comp.dataset.warmth = String(hatching ? 2 : state.egg.warmth)
   $('egg-icon').dataset.warmth = comp.dataset.warmth
   renderFurnishings()
+  renderLayoutEditor()
 }
 function renderFurnishings() {
   const decor = $('den-decor')
@@ -557,10 +654,219 @@ function renderFurnishings() {
     button.type = 'button'
     button.setAttribute('aria-label', item.action)
     button.dataset.decor = item.id
+    button.dataset.layoutId = item.id
     prop.append(visual, button)
     return prop
   }))
 }
+
+const layoutDirections = { left:[-.04, 0], up:[0, -.04], down:[0, .04], right:[.04, 0] }
+const layoutKeys = { ArrowLeft:'left', ArrowUp:'up', ArrowDown:'down', ArrowRight:'right' }
+
+function visibleLayoutItems() {
+  const propIds = state.equipped.map(id => [id, SHOP.find(item => item.id === id).label])
+  const find = displayedFind(finds)
+  if (find) propIds.push([find.id, find.name])
+  if (selectedLanternLight(lantern)) propIds.push(['star-lantern', 'Sternenlaterne'])
+  return propIds
+}
+
+function layoutElement(id) {
+  return $('scene').querySelector('[data-layout-id="' + id + '"]')
+}
+
+function applyLayout(positions) {
+  const scene = $('scene')
+  for (const button of scene.querySelectorAll('[data-layout-id]')) {
+    const id = button.dataset.layoutId
+    const item = button.closest('.den-prop') ?? button
+    const position = Object.hasOwn(positions, id) ? positions[id] : null
+    item.classList.toggle('has-custom-position', !!position)
+    const selected = layoutEditing && id === layoutSelected
+    button.classList.toggle('layout-selected', selected)
+    if (layoutEditing) button.setAttribute('aria-pressed', String(selected))
+    else button.removeAttribute('aria-pressed')
+    if (position) {
+      item.style.setProperty('--layout-x', position.x * 100 + '%')
+      item.style.setProperty('--layout-y', position.y * 100 + '%')
+    } else {
+      item.style.removeProperty('--layout-x')
+      item.style.removeProperty('--layout-y')
+    }
+  }
+  const lanternPosition = positions['star-lantern']
+  if (lanternPosition && !$('scene-star-lantern').hidden) {
+    scene.style.setProperty('--layout-light-x', lanternPosition.x * 100 + '%')
+    scene.style.setProperty('--layout-light-y', lanternPosition.y * 100 + '%')
+  } else {
+    scene.style.removeProperty('--layout-light-x')
+    scene.style.removeProperty('--layout-light-y')
+  }
+  const cushion = positions[FIRST_REWARD_ID]
+  if (cushion) {
+    scene.style.setProperty('--layout-cushion-x', cushion.x * 100 + '%')
+    scene.style.setProperty('--layout-cushion-y', cushion.y * 100 + '%')
+  } else {
+    scene.style.removeProperty('--layout-cushion-x')
+    scene.style.removeProperty('--layout-cushion-y')
+  }
+}
+
+function renderLayoutEditor() {
+  const items = visibleLayoutItems()
+  if (!items.length && layoutEditing) {
+    layoutEditing = false
+    layoutDrag = null
+  }
+  $('scene').classList.toggle('layout-editing', layoutEditing)
+  $('nest-layout-toggle').hidden = !items.length
+  $('nest-layout-toggle').setAttribute('aria-expanded', String(layoutEditing))
+  $('nest-layout-toggle').textContent = layoutEditing ? 'Fertig' : 'Nest gestalten'
+  $('nest-layout-tools').hidden = !layoutEditing
+  for (const id of ['pet', 'pet-label', 'scene-egg-button']) $(id).inert = layoutEditing
+  const select = $('nest-layout-item')
+  if (layoutEditing) {
+    const signature = items.map(([id]) => id).join(',')
+    if (select.dataset.items !== signature) {
+      select.dataset.items = signature
+      select.replaceChildren(...items.map(([id, name]) => new Option(name, id)))
+    }
+    if (!items.some(([id]) => id === layoutSelected)) layoutSelected = items[0][0]
+    select.value = layoutSelected
+    $('nest-layout-reset').disabled = !Object.hasOwn(nestLayout, layoutSelected)
+  }
+  applyLayout(layoutDrag?.draft ?? nestLayout)
+}
+
+function setLayoutEditing(active) {
+  if (layoutDrag?.draft) suppressLayoutClick = true
+  layoutDrag = null
+  layoutEditing = active
+  if (active) {
+    clearFurnishingReaction()
+    clearFindReaction()
+    clearLanternReaction()
+    $('scene').classList.remove('is-settling')
+  }
+  renderLayoutEditor()
+  if (page !== 'nest') return
+  if (active) $('nest-layout-item').focus()
+  else $('nest-layout-toggle').focus()
+}
+
+function scenePoint(x, y) {
+  const box = $('scene').getBoundingClientRect()
+  return { x:(x - box.left) / box.width, y:(y - box.top) / box.height }
+}
+
+function currentLayoutPoint(id) {
+  if (Object.hasOwn(nestLayout, id)) return furnishingPosition(nestLayout, id)
+  const button = layoutElement(id)
+  if (!button) return furnishingPosition(nestLayout, id)
+  const visual = button.previousElementSibling?.classList.contains('den-visual') ? button.previousElementSibling : button
+  const box = visual.getBoundingClientRect()
+  return box.width && box.height ? scenePoint(box.left + box.width / 2, box.top + box.height / 2) : furnishingPosition(nestLayout, id)
+}
+
+function saveLayout(next) {
+  if (next !== nestLayout) {
+    nestLayout = next
+    persist()
+    const position = furnishingPosition(nestLayout, layoutSelected)
+    $('nest-layout-status').textContent = $('nest-layout-item').selectedOptions[0].textContent + ' · ' +
+      Math.round(position.x * 100) + '% von links, ' + Math.round(position.y * 100) + '% von oben.'
+  }
+  renderLayoutEditor()
+}
+
+function nudgeLayout(direction) {
+  const [dx, dy] = layoutDirections[direction]
+  const point = currentLayoutPoint(layoutSelected)
+  if (point) saveLayout(moveFurnishing(nestLayout, layoutSelected, point.x + dx, point.y + dy))
+}
+
+$('nest-layout-toggle').addEventListener('click', () => setLayoutEditing(!layoutEditing))
+$('nest-layout-item').addEventListener('change', event => {
+  layoutSelected = event.target.value
+  renderLayoutEditor()
+})
+$('nest-layout-arrows').addEventListener('click', event => {
+  const button = event.target.closest('[data-layout-move]')
+  if (button) nudgeLayout(button.dataset.layoutMove)
+})
+$('nest-layout-reset').addEventListener('click', () => {
+  saveLayout(resetFurnishing(nestLayout, layoutSelected))
+  $('nest-layout-item').focus({ preventScroll:true })
+})
+$('nest-layout-tools').addEventListener('keydown', event => {
+  if (event.key === 'Escape') { event.preventDefault(); setLayoutEditing(false) }
+})
+$('scene').addEventListener('keydown', event => {
+  if (!layoutEditing) return
+  if (event.key === 'Escape') { event.preventDefault(); setLayoutEditing(false); return }
+  const item = event.target.closest('[data-layout-id]')
+  const direction = layoutKeys[event.key]
+  if (!item || !direction) return
+  event.preventDefault()
+  layoutSelected = item.dataset.layoutId
+  nudgeLayout(direction)
+})
+$('scene').addEventListener('pointerdown', event => {
+  if (!event.isPrimary || event.button !== 0) return
+  suppressLayoutClick = false
+  if (!layoutEditing) return
+  const item = event.target.closest('[data-layout-id]')
+  if (!item) return
+  layoutSelected = item.dataset.layoutId
+  renderLayoutEditor()
+  layoutDrag = { id:layoutSelected, target:item, pointer:event.pointerId, x:event.clientX, y:event.clientY, origin:currentLayoutPoint(layoutSelected), draft:null }
+})
+$('scene').addEventListener('pointermove', event => {
+  if (!layoutDrag || layoutDrag.pointer !== event.pointerId) return
+  const dx = event.clientX - layoutDrag.x
+  const dy = event.clientY - layoutDrag.y
+  if (!layoutDrag.draft && Math.hypot(dx, dy) < 6) return
+  if (!layoutDrag.draft && !layoutDrag.target.hasPointerCapture(event.pointerId)) {
+    layoutDrag.target.setPointerCapture(event.pointerId)
+  }
+  const box = $('scene').getBoundingClientRect()
+  layoutDrag.draft = moveFurnishing(nestLayout, layoutDrag.id, layoutDrag.origin.x + dx / box.width, layoutDrag.origin.y + dy / box.height)
+  applyLayout(layoutDrag.draft)
+})
+function finishLayoutDrag(event) {
+  if (!layoutDrag || layoutDrag.pointer !== event.pointerId) return
+  if (event.type === 'lostpointercapture' && event.target !== layoutDrag.target) return
+  const { draft, id } = layoutDrag
+  layoutDrag = null
+  if (draft) suppressLayoutClick = true
+  if (event.type === 'pointerup' && draft) {
+    layoutSelected = id
+    const position = furnishingPosition(draft, id)
+    saveLayout(moveFurnishing(nestLayout, id, position.x, position.y))
+  } else renderLayoutEditor()
+}
+$('scene').addEventListener('pointerup', finishLayoutDrag)
+$('scene').addEventListener('pointercancel', finishLayoutDrag)
+$('scene').addEventListener('lostpointercapture', finishLayoutDrag)
+$('scene').addEventListener('click', event => {
+  if (event.detail && suppressLayoutClick) {
+    suppressLayoutClick = false
+    event.preventDefault()
+    event.stopImmediatePropagation()
+    return
+  }
+  if (!layoutEditing) return
+  event.preventDefault()
+  event.stopImmediatePropagation()
+  const item = event.target.closest('[data-layout-id]')
+  if (item) {
+    layoutSelected = item.dataset.layoutId
+    renderLayoutEditor()
+  } else if (event.detail && layoutSelected) {
+    const point = scenePoint(event.clientX, event.clientY)
+    saveLayout(moveFurnishing(nestLayout, layoutSelected, point.x, point.y))
+  }
+}, true)
 
 function clearFurnishingReaction() {
   clearTimeout(furnishingFeedbackTimer)
@@ -775,6 +1081,8 @@ function renderNestFind() {
   const item = displayedFind(finds)
   const button = $('scene-find')
   button.hidden = !item
+  if (item) button.dataset.layoutId = item.id
+  else delete button.dataset.layoutId
   $('nest-finds-link').hidden = finds.owned.length === 0
   if (!item) {
     $('scene-find-image').removeAttribute('src')
@@ -902,6 +1210,7 @@ $('postcard-open').addEventListener('click', async () => {
       egg: state.egg.stage,
       warmth: state.egg.warmth,
       equipped: [...state.equipped],
+      nestLayout,
       find: item ? { id:item.id, label:item.name } : null,
       keepsake: reward || null,
       starLantern: selectedLanternLight(lantern),
@@ -1110,6 +1419,7 @@ function route(focusHeading = false) {
   const journeyRoute = missionRoute || ['garten/fortsetzen', 'garten/abzeichen', 'nest/ei'].includes(hash)
   const requested = cushionRoute || furnitureRoute || findRoute || starRoute || journeyRoute ? hash.split('/')[0] : hash
   page = pages.includes(requested) ? requested : 'nest'
+  if (page !== 'nestbuch' && $('story-dialog').open) $('story-dialog').close()
   for (const id of pages) {
     $('view-' + id).hidden = id !== page
     const nav = document.querySelector('[data-page="' + id + '"]')
@@ -1117,6 +1427,7 @@ function route(focusHeading = false) {
     else nav.removeAttribute('aria-current')
   }
   if (page !== 'nest') {
+    if (layoutEditing) setLayoutEditing(false)
     endHatch(false)
     clearFurnishingReaction()
     clearLanternReaction()
@@ -1527,7 +1838,7 @@ function absorbOtherTab() {
   readProgress(other)
   selection = null; hinted = []
   wallet(); renderBookLink(); route()
-  if (openedStory) paintStory()
+  if ($('story-dialog').open) refreshStoryReader()
 }
 addEventListener('storage', event => {
   if (event.key === GUIDE_KEY) {

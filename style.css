@@ -245,15 +245,19 @@ html[data-quiet=true] *,html[data-quiet=true] *::before,html[data-quiet=true] *:
 .story-nest-link .quest-icon .icon{width:20px;height:20px}
 .story-dialog{width:min(550px,calc(100% - 24px));padding:0;color:var(--cream);overflow:auto;max-height:calc(100% - 24px)}
 .story-dialog::backdrop{background:#100b17ce}
+.story-close-row{position:sticky;top:0;z-index:1;display:flex;justify-content:flex-end;align-items:flex-start;height:0;pointer-events:none}
+.story-close-row button{margin:8px;min-width:44px;min-height:44px;background:#332339;pointer-events:auto}
+.story-page + .story-page{border-top:1px solid #ba8b8660}
 .story-dialog-art{height:clamp(86px,24vw,178px);background-position:center 58%;background-size:cover}
 .story-dialog-art[data-art=baby]{background-color:#4e2b4a;background-size:contain;background-repeat:no-repeat;background-position:center}
 .story-dialog-content{padding:16px 20px 21px}
-.story-dialog h2{font-size:clamp(25px,5vw,38px);letter-spacing:-.035em;line-height:1.06;margin:2px 0 11px}
+.story-dialog h3{font-size:clamp(25px,5vw,38px);letter-spacing:-.035em;line-height:1.06;margin:2px 0 11px}
 .story-dialog p{color:#f2e5ef;font-size:15px;line-height:1.65}
-.story-dialog #story-ending{margin-top:12px;padding:11px 12px;background:#422e44;border-radius:10px;border-left:3px solid #e6ac91;outline-offset:3px}
+.story-dialog .story-ending{margin-top:12px;padding:11px 12px;background:#422e44;border-radius:10px;border-left:3px solid #e6ac91;outline-offset:3px}
+.story-dialog .story-continuation{margin:0 20px 20px;padding-top:12px;border-top:1px solid #ba8b8660;color:#e0cadc;font-size:13px}
 .story-keepsake{margin-top:11px;color:#ffd9b8;font-size:13px}
 .story-choices{display:flex;gap:8px;flex-wrap:wrap}
-.story-choices button,#story-display{margin-top:12px;min-height:44px}
+.story-choices button,.story-display{margin-top:12px;min-height:44px}
 .scene-keepsake{position:absolute;z-index:5;top:57px;left:15px;color:#ffe0c8;background:#301e33e8;border:1px solid #d7988966;border-radius:999px;padding:5px 8px;font-size:11px;max-width:calc(100% - 30px)}
 .special-guide{margin-top:15px;color:var(--muted);font-size:13px;line-height:1.45}
 .special-guide summary{color:var(--lilac);cursor:pointer;padding:6px 0}
@@ -957,3 +961,53 @@ html[data-quiet=true] *,html[data-quiet=true] *::before,html[data-quiet=true] *:
 }
 html[data-quiet="true"] .scene[data-action="feed"] .pet-care-prop,
 html[data-quiet="true"] .scene[data-action="play"] .pet-care-prop { opacity: 1; }
+
+.layout-panel { padding: 12px 14px; }
+.layout-panel p { color: var(--muted); font-size: 13px; line-height: 1.45; }
+.layout-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 8px; }
+.layout-controls label { font-size: 12px; color: var(--cream); }
+.layout-controls select {
+  min-height: 44px;
+  max-width: 100%;
+  padding: 4px 8px;
+  background: #2e2034;
+  border: 1px solid #866582;
+  color: var(--cream);
+  border-radius: 9px;
+}
+.layout-arrows { display: flex; gap: 3px; }
+.layout-arrows .small-button { padding: 0; width: 44px; font-size: 17px; }
+.layout-controls button { min-height: 44px; }
+.layout-controls button:disabled { opacity: .5; }
+.scene.layout-editing { touch-action: none; cursor: crosshair; outline: 2px solid #af8497; outline-offset: 2px; }
+.scene.layout-editing [data-layout-id] { touch-action: none; cursor: grab; z-index: 6; }
+.scene.layout-editing [data-layout-id]:active { cursor: grabbing; }
+.scene.layout-editing .layout-selected {
+  z-index: 7;
+  outline: 2px dashed #ffe0ac;
+  outline-offset: 2px;
+  background-color: #ffe0ac1c;
+}
+.den-prop.has-custom-position {
+  --decor-top: var(--layout-y);
+  --hit-x: var(--layout-x);
+  --hit-y: var(--layout-y);
+}
+.den-prop.has-custom-position .den-visual { left: var(--layout-x); }
+.scene-find.has-custom-position, .scene-star-lantern.has-custom-position {
+  inset: var(--layout-y) auto auto var(--layout-x);
+  translate: -50% -50%;
+}
+.scene[data-star-light] .star-light {
+  background: radial-gradient(ellipse at var(--layout-light-x, 83%) calc(var(--layout-light-y, 29%) + 10%), color-mix(in srgb, var(--star-color) 51%, transparent), transparent 51%);
+}
+.star-light-pattern {
+  translate: calc(var(--layout-light-x, 83%) - 83%) calc(var(--layout-light-y, 29%) - 29%);
+}
+.scene.has-moss-cushion:is(.is-settling,.is-resting) .pet-track {
+  left: var(--layout-cushion-x, 50%);
+  top: calc(var(--layout-cushion-y, 77%) - 22%);
+}
+@media (max-width: 665px) {
+  .layout-panel { order: -1; width: 100%; }
+}

@@ -218,6 +218,12 @@ export function storyStatus(stories, storyId) {
   return stories?.revealed?.includes(storyId) ? 'ready' : 'locked'
 }
 
+export function nextUnreadStory(stories, afterStoryId) {
+  const start = STORIES.findIndex(story => story.id === afterStoryId) + 1
+  const readingOrder = [...STORIES.slice(start), ...STORIES.slice(0, start)]
+  return readingOrder.find(story => storyStatus(stories, story.id) === 'ready') ?? null
+}
+
 export function chooseStory(stories, storyId, choiceId) {
   const story = STORY_BY_ID.get(storyId)
   const choice = story?.choices.find(option => option.id === choiceId)

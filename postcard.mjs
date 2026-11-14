@@ -1,5 +1,6 @@
 import { nestFurnishing, NEST_FURNISHINGS } from './decor.mjs'
 import { SHOP } from './game.mjs'
+import { normalizeLayout, furnishingPosition } from './layout.mjs'
 
 const furnishingNames = new Map(SHOP.map(item => [item.id, item.label]))
 
@@ -115,12 +116,13 @@ function tintBaby(image) {
   return canvas
 }
 
-function drawDecor(ctx, art, equipped) {
+function drawDecor(ctx, art, equipped, layout) {
   for (const furnishing of NEST_FURNISHINGS) {
     if (!equipped.includes(furnishing.id)) continue
     const image = art[furnishing.id]
-    const x = SCENE.x + SCENE.width * furnishing.x
-    const y = SCENE.y + SCENE.height * furnishing.y
+    const position = furnishingPosition(layout, furnishing.id)
+    const x = SCENE.x + SCENE.width * position.x
+    const y = SCENE.y + SCENE.height * position.y
     const width = SCENE.width * furnishing.width
     const height = width * image.height / image.width
     if (furnishing.layer === 'ground') drawShadow(ctx, x, y + height * .34, width * .83, height * .32)
@@ -140,9 +142,9 @@ function drawShadow(ctx, x, y, width, height) {
   ctx.restore()
 }
 
-function drawLantern(ctx, image, look) {
-  const x = SCENE.x + SCENE.width * .87
-  const y = SCENE.y + SCENE.height * .237
+function drawLantern(ctx, image, look, position = { x:.87, y:.237 }) {
+  const x = SCENE.x + SCENE.width * position.x
+  const y = SCENE.y + SCENE.height * position.y
   const glow = ctx.createRadialGradient(x, y + 43, 18, x, y + 43, 260)
   glow.addColorStop(0, look.glow + ' .31)')
   glow.addColorStop(.45, look.glow + ' .14)')
@@ -155,8 +157,8 @@ function drawLantern(ctx, image, look) {
   ctx.shadowColor = look.color
   ctx.shadowBlur = 9
   for (const [index, [fractionX, fractionY, radius]] of look.stars.entries()) {
-    const starX = SCENE.x + SCENE.width * fractionX
-    const starY = SCENE.y + SCENE.height * fractionY
+    const starX = x + SCENE.width * (fractionX - .87)
+    const starY = y + SCENE.height * (fractionY - .237)
     const shoulder = radius * .24
     ctx.beginPath()
     if (look.pattern === 'embers') {
@@ -195,16 +197,18 @@ function drawScene(ctx, art, state) {
   roundedPath(ctx, SCENE.x, SCENE.y, SCENE.width, SCENE.height, 25)
   ctx.clip()
   imageFit(ctx, art.nest, SCENE.x, SCENE.y, SCENE.width, SCENE.height, true, .57)
-  if (art.lantern) drawLantern(ctx, art.lantern, state.lantern)
+  if (art.lantern) drawLantern(ctx, art.lantern, state.lantern, state.layout['star-lantern'])
 
-  const x = SCENE.x + SCENE.width * .5
-  const y = SCENE.y + SCENE.height * .81
+  const cushion = state.pose === 'rest' && state.equipped.includes('moss-cushion') && state.layout['moss-cushion']
+  const x = SCENE.x + SCENE.width * (cushion ? cushion.x : .5)
+  const y = SCENE.y + SCENE.height * (cushion ? cushion.y + .04 : .81)
   const companionX = SCENE.x + SCENE.width * .758
   const companionY = SCENE.y + SCENE.height * .835
-  const findX = SCENE.x + SCENE.width * .265
-  const findY = SCENE.y + SCENE.height * .84
+  const find = state.layout[state.findId]
+  const findX = SCENE.x + SCENE.width * (find ? find.x : .265)
+  const findY = SCENE.y + SCENE.height * (find ? find.y : .84) + (find ? 62 : 0)
 
-  drawDecor(ctx, art, state.equipped)
+  drawDecor(ctx, art, state.equipped, state.layout)
   if (art.find) {
     drawShadow(ctx, findX, findY + 2, 130, 32)
     centered(ctx, art.find, findX, findY - 62, 147, 132, true)
@@ -293,7 +297,8 @@ function normalize(options) {
   const findId = Object.hasOwn(findNames, options.find?.id) ? options.find.id : null
   const keepsakeTitle = typeof options.keepsake?.title === 'string' ? options.keepsake.title.trim().slice(0, 100) : ''
   const lantern = Object.hasOwn(lanternLooks, options.starLantern?.id) ? lanternLooks[options.starLantern.id] : null
-  return { name: name || 'Fünkchen', pose, equipped, egg, warmth, findId, findName: findNames[findId], keepsakeTitle, lantern }
+  const layout = normalizeLayout(options.nestLayout)
+  return { name: name || 'Fünkchen', pose, equipped, egg, warmth, findId, findName: findNames[findId], keepsakeTitle, lantern, layout }
 }
 
 export async function renderPostcard(options = {}) {
