@@ -1,4 +1,7 @@
+import { nestFurnishing, NEST_FURNISHINGS } from './decor.mjs'
 import { SHOP } from './game.mjs'
+
+const furnishingNames = new Map(SHOP.map(item => [item.id, item.label]))
 
 const WIDTH = 1200
 const HEIGHT = 825
@@ -11,7 +14,6 @@ const artFiles = {
   cuddle: 'dragon-blink.webp',
   egg: 'dragon-egg.webp',
   cracks: 'egg-cracks.svg',
-  cushion: 'moss-cushion.webp',
   lantern: 'star-lantern.webp',
   'river-pebble': 'find-river-pebble.webp',
   'ember-feather': 'find-ember-feather.webp',
@@ -37,7 +39,6 @@ const lanternLooks = {
 }
 
 const findNames = { 'river-pebble': 'Bachkiesel', 'ember-feather': 'Glutfeder' }
-const decorById = new Map(SHOP.map(item => [item.id, item]))
 
 const poses = {
   awake: 'awake',
@@ -45,18 +46,8 @@ const poses = {
   cuddle: 'cuddle',
 }
 
-const decorPoints = [[.22, .63], [.82, .55], [.78, .31], [.24, .31]]
-
-const decorPaths = {
-  'firefly-lantern': 'M8 5h8l2 4v10H6V9zM9 5V3h6v2M6 9h12m-12 8h12m-6-6c-1 1-2 2-2 3a2 2 0 0 0 4 0c0-1-1-2-2-3z',
-  'moon-flowers': 'M12 9c-4-7 4-8 4-2 6-3 7 5 1 6 4 5-2 9-5 4-3 5-9 1-5-4-6-1-5-9 1-6 0-6 8-5 4 2Z M14 13a2 2 0 1 1-4 0 2 2 0 1 1 4 0',
-  'star-mobile': 'M12 2l3 6.4 7 .9-5.1 5 1.1 7-6-3.3-6 3.3 1.1-7L2 9.3l7-.9z',
-  'cloud-blanket': 'M7 19h11a4 4 0 1 0-.5-8 6 6 0 0 0-11.6 1A3.5 3.5 0 0 0 7 19Z',
-  'comet-rug': 'M21 8a5 5 0 1 1-10 0 5 5 0 1 1 10 0M13 12l-9 9m5-11-5 5m11-1-5 6',
-}
-
 function loadArt(key) {
-  const url = new URL('./assets/' + artFiles[key], import.meta.url)
+  const url = new URL(nestFurnishing(key)?.asset ?? './assets/' + artFiles[key], import.meta.url)
   return new Promise((resolve, reject) => {
     const image = new Image()
     image.onload = () => resolve(image)
@@ -124,29 +115,17 @@ function tintBaby(image) {
   return canvas
 }
 
-function drawDecor(ctx, ids) {
-  const emblems = ids.filter(id => decorPaths[id])
-  emblems.forEach((id, i) => {
-    const [x, y] = decorPoints[i]
-    const radius = 31
-    ctx.save()
-    ctx.translate(SCENE.x + SCENE.width * x, SCENE.y + SCENE.height * y)
-    ctx.beginPath()
-    ctx.arc(0, 0, radius, 0, Math.PI * 2)
-    ctx.fillStyle = '#35243be6'
-    ctx.fill()
-    ctx.strokeStyle = '#d5a88b99'
-    ctx.lineWidth = 1.5
-    ctx.stroke()
-    ctx.translate(-16, -16)
-    ctx.scale(32 / 24, 32 / 24)
-    ctx.strokeStyle = '#fcd3b4'
-    ctx.lineWidth = 1.65
-    ctx.lineCap = 'round'
-    ctx.lineJoin = 'round'
-    ctx.stroke(new Path2D(decorPaths[id]))
-    ctx.restore()
-  })
+function drawDecor(ctx, art, equipped) {
+  for (const furnishing of NEST_FURNISHINGS) {
+    if (!equipped.includes(furnishing.id)) continue
+    const image = art[furnishing.id]
+    const x = SCENE.x + SCENE.width * furnishing.x
+    const y = SCENE.y + SCENE.height * furnishing.y
+    const width = SCENE.width * furnishing.width
+    const height = width * image.height / image.width
+    if (furnishing.layer === 'ground') drawShadow(ctx, x, y + height * .34, width * .83, height * .32)
+    centered(ctx, image, x, y, width, height, true)
+  }
 }
 
 function drawShadow(ctx, x, y, width, height) {
@@ -162,8 +141,8 @@ function drawShadow(ctx, x, y, width, height) {
 }
 
 function drawLantern(ctx, image, look) {
-  const x = SCENE.x + SCENE.width * .82
-  const y = SCENE.y + SCENE.height * .31
+  const x = SCENE.x + SCENE.width * .87
+  const y = SCENE.y + SCENE.height * .237
   const glow = ctx.createRadialGradient(x, y + 43, 18, x, y + 43, 260)
   glow.addColorStop(0, look.glow + ' .31)')
   glow.addColorStop(.45, look.glow + ' .14)')
@@ -208,7 +187,7 @@ function drawLantern(ctx, image, look) {
     ctx.fill()
   }
   ctx.restore()
-  centered(ctx, image, x, y, 155, 195, true)
+  centered(ctx, image, x, y, 138, 165, true)
 }
 
 function drawScene(ctx, art, state) {
@@ -225,17 +204,14 @@ function drawScene(ctx, art, state) {
   const findX = SCENE.x + SCENE.width * .265
   const findY = SCENE.y + SCENE.height * .84
 
-  if (art.cushion) {
-    centered(ctx, art.cushion, x, y - 4, 464, 244, true)
-  }
-  drawDecor(ctx, state.equipped)
+  drawDecor(ctx, art, state.equipped)
   if (art.find) {
     drawShadow(ctx, findX, findY + 2, 130, 32)
     centered(ctx, art.find, findX, findY - 62, 147, 132, true)
   }
 
   drawShadow(ctx, x, y + 4, 340, 72)
-  centered(ctx, art.adult, x, y - (art.cushion ? 206 : 194), 425, 425, true)
+  centered(ctx, art.adult, x, y - (state.equipped.some(id => nestFurnishing(id).layer === 'ground') ? 206 : 194), 425, 425, true)
 
   if (state.egg === 'hatched') {
     drawShadow(ctx, companionX, companionY, 146, 36)
@@ -310,7 +286,7 @@ function normalize(options) {
   const name = typeof options.name === 'string' ? options.name.trim().slice(0, 80) : ''
   const pose = Object.hasOwn(poses, options.pose) ? poses[options.pose] : poses.awake
   const equipped = Array.isArray(options.equipped)
-    ? [...new Set(options.equipped)].filter(id => decorById.has(id)).slice(0, decorPoints.length)
+    ? [...new Set(options.equipped)].filter(id => nestFurnishing(id))
     : []
   const egg = ['locked', 'egg', 'hatched'].includes(options.egg) ? options.egg : 'locked'
   const warmth = options.warmth === 1 || options.warmth === 2 ? options.warmth : 0
@@ -323,7 +299,7 @@ function normalize(options) {
 export async function renderPostcard(options = {}) {
   const state = normalize(options)
   const resources = [['nest', 'nest'], ['adult', state.pose]]
-  if (state.equipped.includes('moss-cushion')) resources.push(['cushion', 'cushion'])
+  for (const id of state.equipped) resources.push([id, id])
   if (state.findId) resources.push(['find', state.findId])
   if (state.lantern) resources.push(['lantern', 'lantern'])
   if (state.egg === 'hatched') resources.push(['baby', 'awake'])
@@ -349,7 +325,7 @@ export async function renderPostcard(options = {}) {
   const details = [
     state.name,
     state.egg === 'hatched' ? 'Knöpfchen' : state.egg === 'egg' ? 'Drachenei' : '',
-    ...state.equipped.map(id => decorById.get(id).label),
+    ...state.equipped.map(id => furnishingNames.get(id)),
     state.findName,
     state.keepsakeTitle,
     state.lantern && 'Sternenlaterne in ' + state.lantern.title,

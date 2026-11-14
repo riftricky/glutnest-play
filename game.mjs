@@ -104,6 +104,27 @@ function normalizeSpecials(value) {
   }))
 }
 
+function normalizeRecords(value, wins, round) {
+  const records = {}
+  for (const { id, moves } of MISSIONS) {
+    if (!wins.includes(id)) continue
+    const record = value?.[id]
+    if (Number.isFinite(record?.score) && Number.isFinite(record?.movesLeft)) {
+      records[id] = { score: intIn(record.score, 0, 1_000_000), movesLeft: intIn(record.movesLeft, 0, moves - 1) }
+    }
+  }
+  if (round?.status === 'won') {
+    const candidate = { score: round.score, movesLeft: round.movesLeft }
+    const prior = records[round.missionId]
+    if (betterRecord(candidate, prior)) records[round.missionId] = candidate
+  }
+  return Object.keys(records).length ? records : null
+}
+
+function betterRecord(candidate, prior) {
+  return !prior || candidate.score > prior.score || (candidate.score === prior.score && candidate.movesLeft > prior.movesLeft)
+}
+
 function normalizeRound(value, wins, egg) {
   if (!isRecord(value)) return null
   const mission = missionById.get(value.missionId)
@@ -156,6 +177,8 @@ export function normalizeState(input, now = Date.now()) {
   for (const id of Object.keys(CARE)) {
     if (Number.isFinite(input.careAt?.[id])) careAt[id] = intIn(input.careAt[id], 0, now)
   }
+  const round = normalizeRound(input.round, wins, egg)
+  const records = normalizeRecords(input.progress?.records, wins, round)
   const state = {
     version: defaults.version,
     name: cleanName(input.name) || defaults.name,
@@ -171,12 +194,13 @@ export function normalizeState(input, now = Date.now()) {
       wins,
       rounds: intIn(input.progress?.rounds, wins.length, 100_000),
       bestScore: intIn(input.progress?.bestScore, 0, 1_000_000),
+      ...(records && { records }),
     },
     createdAt,
     updatedAt,
     careAt,
     restUntil: intIn(input.restUntil, 0, now + REST_DURATION),
-    round: normalizeRound(input.round, wins, egg),
+    round,
   }
   return tick(state, now)
 }
@@ -583,7 +607,11 @@ export function playMove(state, from, to, rng = Math.random) {
   const eggFound = firstWin && mission.id === EGG_MISSION && state.egg.stage === 'locked'
   const glow = status === 'won' ? (firstWin ? mission.reward : Math.ceil(mission.reward / 3)) : status === 'lost' ? 2 : 0
   const xp = status === 'won' ? (firstWin ? 18 : 9) : status === 'lost' ? 4 : 0
-  const summary = { score, cleared, chains: frames.length, createdSpecials, activatedSpecials, reshuffled, glow, xp, firstWin, eggFound }
+  const candidate = { score: total, movesLeft }
+  const previousRecord = state.progress.records?.[mission.id]
+  const personalBest = status === 'won' && betterRecord(candidate, previousRecord)
+  const records = personalBest ? { ...state.progress.records, [mission.id]: candidate } : state.progress.records
+  const summary = { score, cleared, chains: frames.length, createdSpecials, activatedSpecials, reshuffled, glow, xp, firstWin, eggFound, personalBest }
   const next = {
     ...state,
     glow: addGlow(state, glow),
@@ -593,6 +621,7 @@ export function playMove(state, from, to, rng = Math.random) {
       wins: firstWin ? [...state.progress.wins, mission.id] : state.progress.wins,
       rounds: state.progress.rounds + Number(ended),
       bestScore: Math.max(state.progress.bestScore, total),
+      ...(records && { records }),
     },
     round: { ...round, board, specials, activatedSpecials: totalActivated, score: total, tiles, movesLeft, goalReached, status },
   }

@@ -76,10 +76,6 @@ h1 em{color:var(--peach);font-weight:400}
 .embers i{position:absolute;width:5px;height:5px;border-radius:50%;background:#ffd2a5;box-shadow:0 0 12px 2px #f69365;animation:drift 8s ease-in-out infinite;z-index:2}
 .embers i:nth-child(1){left:18%;top:65%;animation-delay:-2s}.embers i:nth-child(2){left:25%;top:38%;animation-delay:-6s}.embers i:nth-child(3){left:71%;top:40%;animation-delay:-4s}.embers i:nth-child(4){left:79%;top:60%;animation-delay:-1s}.embers i:nth-child(5){left:65%;top:76%;animation-delay:-7s}.embers i:nth-child(6){left:36%;top:27%;animation-delay:-3s}
 @keyframes drift{0%,100%{transform:translate(0,7px);opacity:.16}52%{transform:translate(11px,-21px);opacity:.78}}
-.den-decor{z-index:2}
-.den-item{position:absolute;display:grid;place-items:center;color:#fcd2b4;filter:drop-shadow(0 5px 6px #1a101a);background:#35243bc2;border:1px solid #f6c1a868;border-radius:50%;width:clamp(33px,8%,58px);aspect-ratio:1;animation:breathe 5s ease-in-out infinite}
-.den-item .icon{width:55%;height:55%}
-.den-item:nth-child(1){bottom:21%;left:19%}.den-item:nth-child(2){bottom:23%;right:14%}.den-item:nth-child(3){top:28%;right:19%}.den-item:nth-child(4){top:25%;left:23%}
 .scene-companion{position:absolute;z-index:4;bottom:15.5%;right:14.5%;width:clamp(58px,18%,132px);aspect-ratio:1;pointer-events:none}
 .scene-companion::before{content:"";position:absolute;inset:auto 19% 7%;height:15%;border-radius:50%;background:radial-gradient(ellipse,#271419d9 5%,#27141988 40%,transparent 72%);pointer-events:none}
 .scene-egg-button{display:block;position:relative;width:100%;height:100%;background:none;border:0;padding:0;border-radius:38%;pointer-events:auto;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
@@ -358,18 +354,6 @@ html[data-quiet=true] *,html[data-quiet=true] *::before,html[data-quiet=true] *:
   52% { opacity: 1; transform: translateY(4%) scale(.81); }
   78%, 100% { opacity: 1; transform: none; }
 }
-.scene-moss-cushion {
-  position: absolute;
-  z-index: 2;
-  width: clamp(143px, 46%, 333px);
-  aspect-ratio: 1.84;
-  left: 50%;
-  top: 79%;
-  translate: -50% -50%;
-  background: url(./assets/moss-cushion.webp) center / contain no-repeat;
-  filter: drop-shadow(0 4px 4px #1b1017a8);
-  pointer-events: none;
-}
 .scene.has-moss-cushion .pet-track { top: 55%; }
 .scene.is-settling .pet-track {
   animation: none;
@@ -437,7 +421,6 @@ html[data-quiet=true] *,html[data-quiet=true] *::before,html[data-quiet=true] *:
   70% { transform: translateY(2%) rotate(5deg); }
 }
 @media (max-width:665px) {
-  .scene-moss-cushion { top: 77%; }
   .scene.has-moss-cushion .pet-track { top: 54%; }
 }
 .nest-tools {
@@ -714,3 +697,263 @@ html[data-quiet=true] *,html[data-quiet=true] *::before,html[data-quiet=true] *:
   .scene-star-lantern { top: 18%; right: 7%; }
   .star-lantern-panel { order: 1; width: 100%; }
 }
+
+/* The crystal board keeps its shape cues in addition to the jewel colours. */
+.mission .mission-reward { display: block; margin-top: 4px; color: #efd0a8; }
+.mission[data-mission="mondbach"] .mission-index { color: #9de7db; }
+.mission[data-mission="sternenhoehle"] .mission-index { color: #f9d9a2; }
+.mission[data-mission="gluehlichtung"] .mission-index { color: #ffc1d8; }
+
+#round[data-mission="glutfeld"] { --board-accent: #9e6253; }
+#round[data-mission="mondbach"] { --board-accent: #3e817b; }
+#round[data-mission="sternenhoehle"] { --board-accent: #7a67a5; }
+#round[data-mission="gluehlichtung"] { --board-accent: #935484; }
+#round .board {
+  background: radial-gradient(ellipse at 50% 0, color-mix(in srgb, var(--board-accent) 38%, #1a131d), #160f1d 73%);
+  border-color: var(--board-accent);
+}
+#round .board-done { margin-top: 13px; opacity: .67; }
+.tile {
+  position: relative;
+  isolation: isolate;
+  background: #241a2bd1;
+  border-color: #664f6a;
+  border-radius: 8px;
+}
+.tile:hover, .tile:focus-visible, .tile[aria-pressed="true"], .tile.is-hint { z-index: 2; }
+.tile-crystal {
+  display: grid;
+  place-items: center;
+  width: 88%;
+  aspect-ratio: 1;
+  clip-path: polygon(27% 6%, 73% 6%, 96% 31%, 88% 76%, 64% 94%, 35% 94%, 12% 76%, 4% 31%);
+  background:
+    linear-gradient(135deg, #ffffff54 0 11%, transparent 16% 72%, #150b2377 80%),
+    linear-gradient(154deg, var(--gem-light), var(--gem) 38%, var(--gem) 58%, #2a1834);
+  box-shadow: inset 0 0 12px #160e25aa;
+  pointer-events: none;
+}
+.tile-crystal .icon { width: 59%; height: 59%; filter: drop-shadow(0 2px 1px #201023); }
+.tile.is-dropping .tile-crystal { animation: drop .22s ease-out; }
+.tile.is-dropping .tile-crystal .icon { animation: none; }
+.tile.is-clearing { opacity: .28; }
+.tile-special { z-index: 1; }
+.goal {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  column-gap: 5px;
+  row-gap: 4px;
+  min-height: 38px;
+  padding: 6px 9px;
+}
+.goal progress {
+  grid-column: 1 / -1;
+  width: 100%;
+  height: 4px;
+  border: 0;
+  border-radius: 9px;
+  background: #221a2a;
+  color: var(--gem-light, #ffc29e);
+  accent-color: var(--gem-light, #ffc29e);
+  appearance: none;
+}
+.goal progress::-webkit-progress-bar { background: #221a2a; border-radius: inherit; }
+.goal progress::-webkit-progress-value { background: var(--gem-light, #ffc29e); border-radius: inherit; }
+.goal progress::-moz-progress-bar { background: var(--gem-light, #ffc29e); border-radius: inherit; }
+.goal[data-complete="true"] { background: #353849; }
+#round-result { margin: 0 0 10px; }
+.round-score strong { display: inline; margin-right: 4px; }
+@media (max-width: 420px) {
+  .tile { border-radius: 5px; }
+  .goal { padding: 5px 7px; font-size: 11px; }
+}
+
+/* The artwork sits inside the scene at each item's fixed location. */
+.den-visual, .den-item {
+  position: absolute;
+  translate: -50% -50%;
+}
+.den-visual {
+  display: block;
+  z-index: 2;
+  left: var(--decor-x);
+  top: var(--decor-top, var(--decor-y));
+  width: var(--decor-width);
+  pointer-events: none;
+}
+.den-visual img {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 4px 3px #200f17a6);
+}
+.den-item {
+  z-index: 4;
+  left: var(--hit-x, var(--decor-x));
+  top: var(--hit-y, var(--decor-top, var(--decor-y)));
+  width: max(44px, var(--hit-width, var(--decor-width)));
+  height: max(44px, var(--hit-height, 15%));
+  border: 0;
+  border-radius: 22%;
+  padding: 0;
+  background: transparent;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+.den-item:focus-visible { outline: 2px dashed #ffdbb2; outline-offset: 2px; }
+.den-prop[data-furnishing="moss-cushion"] { --hit-x: 50%; --hit-y: 79%; --hit-width: 21%; }
+.den-prop[data-furnishing="comet-rug"] { --hit-x: 55%; --hit-y: 78%; --hit-width: 27%; }
+.den-prop[data-furnishing="cloud-blanket"] { --hit-x: 40%; --hit-y: 76%; --hit-width: 21%; }
+.den-prop[data-furnishing="firefly-lantern"] { --hit-x: 82%; --hit-y: 52%; }
+.den-prop[data-furnishing="star-mobile"] .den-visual img { transform-origin: 50% 4%; }
+.den-prop[data-furnishing="firefly-lantern"] .den-visual::before {
+  content: "";
+  position: absolute;
+  inset: -12% -22%;
+  background: radial-gradient(ellipse at 50% 58%, #ffce7560, transparent 60%);
+}
+.den-prop[data-furnishing="moon-flowers"] img { filter: drop-shadow(0 5px 4px #200f17ae) drop-shadow(0 0 6px #92aff333); }
+.scene[data-decor-reaction] .pet-track { animation-play-state: paused; }
+.scene[data-decor-reaction]:not(.is-resting):not(.is-settling) .pet-sprite { animation: none; }
+.scene[data-decor-reaction="cloud-blanket"]:not(.is-resting):not(.is-settling) .pet,
+.scene[data-decor-reaction="moon-flowers"]:not(.is-resting):not(.is-settling) .pet { animation: furnish-sniff 2s ease both; }
+.scene[data-decor-reaction="firefly-lantern"]:not(.is-resting):not(.is-settling) .pet,
+.scene[data-decor-reaction="star-mobile"]:not(.is-resting):not(.is-settling) .pet { animation: furnish-watch 2s ease both; }
+.scene[data-decor-reaction="comet-rug"]:not(.is-resting):not(.is-settling) .pet { animation: furnish-paw 1.7s ease both; }
+.scene-companion.baby[data-decor-reaction="moss-cushion"] .scene-egg-sprite,
+.scene-companion.baby[data-decor-reaction="cloud-blanket"] .scene-egg-sprite,
+.scene-companion.baby[data-decor-reaction="moon-flowers"] .scene-egg-sprite { animation: furnish-sniff 1.7s ease both; }
+.scene-companion.baby[data-decor-reaction="firefly-lantern"] .scene-egg-sprite,
+.scene-companion.baby[data-decor-reaction="comet-rug"] .scene-egg-sprite { animation: furnish-paw 1.8s ease both; }
+.scene-companion.baby[data-decor-reaction="star-mobile"] .scene-egg-sprite { animation: furnish-watch 1.8s ease both; }
+.scene[data-decor-reaction="star-mobile"] .den-prop[data-furnishing="star-mobile"] img { animation: furnish-swing 2.1s ease-in-out both; }
+.scene[data-decor-reaction="firefly-lantern"] .den-prop[data-furnishing="firefly-lantern"] .den-visual::before,
+.scene[data-decor-reaction="moon-flowers"] .den-prop[data-furnishing="moon-flowers"] img { animation: furnish-glow 2.1s ease-in-out both; }
+@keyframes furnish-swing {
+  19% { transform: rotate(11deg); }
+  43% { transform: rotate(-8deg); }
+  68% { transform: rotate(4deg); }
+  86% { transform: rotate(-2deg); }
+}
+@keyframes furnish-glow {
+  36%, 63% { filter: brightness(1.45) drop-shadow(0 1px 7px #ffca807d); }
+}
+@keyframes furnish-sniff {
+  22%, 45% { transform: translate(-4%, 4%) rotate(-5deg) scale(1.04, .94); }
+  35%, 58% { transform: translate(-5%, 3%) rotate(-2deg); }
+}
+@keyframes furnish-watch {
+  26% { transform: translate(4%, -3%) rotate(8deg); }
+  59% { transform: translate(0, -4%) rotate(-4deg) scale(1, 1.05); }
+  76% { transform: translate(3%, -2%) rotate(4deg); }
+}
+@keyframes furnish-paw {
+  26% { transform: translate(7%, -12%) rotate(6deg); }
+  47% { transform: translate(6%, 3%) scale(1.07, .92); }
+  70% { transform: translate(2%, -4%) rotate(-3deg); }
+}
+@media (max-width: 665px) {
+  .den-prop[data-furnishing="star-mobile"] { --decor-top: max(67px, var(--decor-y)); }
+}
+.shop-note { margin: 14px 2px 10px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.shop-slot { display: block; margin-top: 4px; color: var(--peach); font-size: 11px; font-weight: 680; }
+.shop-foot .shop-view { flex: 1 1 100%; }
+.shop-art img { width: 94%; max-width: 240px; max-height: 132px; align-self: center; }
+.shop-art::before, .shop-art::after { z-index: -1; opacity: .46; }
+@media (max-width: 665px) {
+  .shop-art img { max-height: 90px; }
+}
+
+/* Care uses individual gestures. The small sprite shares the space when it is awake. */
+.pet-care-prop { display: none; position: absolute; pointer-events: none; }
+.scene[data-action="feed"] .pet {
+  animation: care-eat 1.38s ease-in-out both;
+}
+.scene[data-action="feed"] .pet-care-prop {
+  display: block;
+  z-index: 1;
+  left: 21%;
+  bottom: 15%;
+  width: clamp(13px, 10%, 28px);
+  aspect-ratio: 1;
+  border-radius: 40% 48% 55% 48%;
+  background: radial-gradient(circle at 34% 26%, #ffdbb1, #f48b63 23%, #a84054 70%, #6f2b43);
+  box-shadow: 0 2px 4px #2c102a9c, 0 0 9px #e06e5070;
+  animation: care-berry 1.37s ease both;
+}
+.scene[data-action="feed"] .pet-care-prop::before {
+  content: "";
+  position: absolute;
+  left: 22%;
+  top: -14%;
+  width: 45%;
+  height: 31%;
+  background: #99a75d;
+  border-radius: 100% 12%;
+  transform: rotate(20deg);
+}
+.scene[data-action="play"] .pet { animation: care-pounce 1.35s ease both; }
+.scene[data-action="play"] .pet-care-prop {
+  display: block;
+  z-index: 1;
+  right: 24%;
+  top: 38%;
+  width: clamp(12px, 9%, 22px);
+  aspect-ratio: 1;
+  background: #fff2a6;
+  clip-path: polygon(50% 0, 64% 36%, 100% 50%, 64% 64%, 50% 100%, 36% 64%, 0 50%, 36% 36%);
+  animation: care-spark 1.36s ease-out both;
+}
+.scene[data-action="cuddle"] .pet { animation: care-cuddle 1.3s ease both; }
+.scene[data-action="rest"] .pet { animation: care-settle 1.32s ease-out both; }
+.scene:not([data-action]):not([data-decor-reaction]):not([data-lantern-reaction]):not([data-find-reaction]):is([data-mood="hungry"], [data-mood="sleepy"], [data-mood="bored"]) .pet-track { animation-duration: 24s; }
+.scene[data-mood="hungry"]:not(.is-settling):not([data-action]):not([data-decor-reaction]):not([data-lantern-reaction]):not([data-find-reaction]) .pet { animation: idle-sniff 7.5s ease-in-out infinite; }
+.scene[data-mood="sleepy"]:not(.is-settling):not([data-action]):not([data-decor-reaction]):not([data-lantern-reaction]):not([data-find-reaction]) .pet { animation: idle-droop 8.2s ease-in-out infinite; }
+.scene:not(.is-settling):not(.is-resting) .scene-companion.baby:not([data-reaction]):not([data-decor-reaction]):not([data-lantern-reaction]):not([data-find-reaction]) .scene-egg-sprite {
+  animation: baby-idle 10.5s ease-in-out infinite;
+}
+@keyframes care-eat {
+  21%, 49% { transform: translate(-6%, 6%) rotate(-8deg) scale(1.04, .94); }
+  36%, 62% { transform: translate(-5%, 3%) rotate(-4deg) scale(1, .96); }
+  82% { transform: translate(0, -3%) scale(.98, 1.03); }
+}
+@keyframes care-berry {
+  0% { transform: translate(-35%, -30%); opacity: 0; }
+  21%, 45% { transform: none; opacity: 1; }
+  64%, 100% { transform: scale(.45); opacity: 0; }
+}
+@keyframes care-pounce {
+  26% { transform: translate(-2%, 3%) scale(1.03, .92); }
+  49% { transform: translate(7%, -15%) rotate(5deg) scale(.98, 1.03); }
+  71% { transform: translate(5%, 4%) scale(1.06, .9); }
+}
+@keyframes care-spark {
+  0% { opacity: 0; transform: scale(.4); }
+  22% { opacity: 1; transform: scale(.95); }
+  53% { opacity: .95; transform: translate(72%, -86%) rotate(84deg); }
+  100% { opacity: 0; transform: translate(180%, -10%) scale(.35) rotate(140deg); }
+}
+@keyframes care-cuddle { 36%, 70% { transform: translate(1%, 4%) rotate(-3deg) scale(.98, .95); } }
+@keyframes care-settle {
+  from { transform: translateY(-7%) scale(1.04); }
+  48% { transform: translateY(2%) scale(1.02, .95); }
+  to { transform: none; }
+}
+@keyframes idle-sniff {
+  0%, 48%, 68%, 100% { transform: none; }
+  54%, 63% { transform: translate(-3%, 3%) rotate(-4deg) scale(1.01, .97); }
+}
+@keyframes idle-droop {
+  0%, 45%, 79%, 100% { transform: none; }
+  59%, 72% { transform: translateY(4%) scale(1, .96); }
+}
+@keyframes baby-idle {
+  0%, 45%, 54%, 66%, 100% { transform: none; }
+  50% { transform: rotate(-5deg) scale(.99, 1.04); }
+  60% { transform: translateY(-6%) rotate(4deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scene[data-action="feed"] .pet-care-prop, .scene[data-action="play"] .pet-care-prop { animation: none !important; }
+}
+html[data-quiet="true"] .scene[data-action="feed"] .pet-care-prop,
+html[data-quiet="true"] .scene[data-action="play"] .pet-care-prop { opacity: 1; }

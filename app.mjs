@@ -2,13 +2,14 @@ import {
   BOARD_SIZE, CARE, MISSIONS, SHOP, SPECIALS, TILES, buyItem, care, careForEgg,
   getHint, getLevel, getMood, isMissionUnlocked, normalizeState,
   playMove, renameDragon, startRound, tick, toggleItem,
-} from './game.mjs'
-import { GUIDE_KEY, GUIDE_STEPS, beginGuide, guideEvent, normalizeGuide } from './guide.mjs'
+} from './game.mjs?v=waldnest'
+import { GUIDE_KEY, beginGuide, guideEvent, nestJourney, normalizeGuide } from './guide.mjs?v=waldnest'
 import { STORIES, chooseStory, normalizeStories, recordStoryEvent, storyStatus } from './stories.mjs?v=lebendiges-nest'
 import { FIRST_REWARD_ID, firstRewardAction, rewardItemAction } from './reward.mjs'
 import { companionReaction } from './companion.mjs'
+import { NEST_FURNISHINGS, nestFurnishing } from './decor.mjs'
 import { FIND_ITEMS, displayedFind, normalizeFinds, recordGardenFind, setDisplayedFind } from './finds.mjs'
-import { renderPostcard, canSharePostcard, sharePostcard } from './postcard.mjs?v=sternennest'
+import { renderPostcard, canSharePostcard, sharePostcard } from './postcard.mjs?v=waldnest'
 import { LANTERN_LIGHTS, normalizeLantern, beginLanternRound, recordLanternMove, lanternStatus, selectLanternLight, availableLanternLights, selectedLanternLight } from './lantern.mjs'
 import { MASTERY_GOALS, normalizeMastery, beginMasteryRound, recordMasteryMove, masteryStatus } from './mastery.mjs'
 
@@ -47,12 +48,12 @@ const paths = {
 const icon = (name) => '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (paths[name] ?? paths.sparkles) + '</svg>'
 const fillIcons = (root = document) => root.querySelectorAll('[data-icon]').forEach(el => { el.innerHTML = icon(el.dataset.icon) })
 const tileIcon = { ember:'flame', leaf:'leaf', moon:'moon', dew:'dew', star:'star', bloom:'bloom' }
-const shopIcon = { 'moss-cushion':'cushion', 'firefly-lantern':'lantern', 'moon-flowers':'bloom', 'star-mobile':'star', 'cloud-blanket':'cloud', 'comet-rug':'comet' }
+const slotLabel = { ground:'Liegeplatz', light:'Lichtschmuck', plants:'Pflanzen' }
 const statMeta = {
   fullness: ['Sattheit','berry'], joy: ['Freude','leaf'], bond: ['Geborgenheit','heart'], energy: ['Energie','moon'],
 }
 const actionIcon = { feed:'berry', play:'leaf', cuddle:'heart', rest:'moon' }
-const actionEmoji = { feed:'🍓', play:'✧', cuddle:'♥', rest:'z z z', egg:'✦' }
+const actionEmoji = { feed:'', play:'', cuddle:'♥', rest:'z z z', egg:'✦' }
 const tileMap = Object.fromEntries(TILES.map(tile => [tile.id, tile]))
 const missionMap = Object.fromEntries(MISSIONS.map(mission => [mission.id, mission]))
 const pages = ['nest', 'garten', 'nestbuch', 'sammlung']
@@ -60,7 +61,7 @@ const storyMap = new Map(STORIES.map(story => [story.id, story]))
 let stories, keepsake, finds, mastery, lantern, openedStory, storyOpener
 let page, state, settings, storageOK = true
 let selection = null, focused = 0, hinted = [], playingAnimation = false, pointer = null
-let reactionTimer, toastTimer, tabRefreshTimer, findFeedbackTimer, lanternFeedbackTimer
+let reactionTimer, toastTimer, tabRefreshTimer, findFeedbackTimer, lanternFeedbackTimer, furnishingFeedbackTimer
 const tiles = []
 let confirmResolve = null
 
@@ -308,8 +309,9 @@ function renderGuide(focus = false) {
     }
     setGuide({ type:'tile-selected', index:selection })
   }
+  if (state.progress.wins.includes(MISSIONS[0].id)) setGuide({ type:'won-first' })
+  if (state.equipped.includes(FIRST_REWARD_ID)) setGuide({ type:'furnished' })
   const name = state.name
-  const stepNumber = GUIDE_STEPS.indexOf(guide.step) + 1
   const current = state.round
   const hasRound = current?.status === 'playing'
   let title, note, action, other, target
@@ -329,11 +331,11 @@ function renderGuide(focus = false) {
       action = ['Zum Nest', guideRoute('nest')]
     }
   } else if (guide.step === 'garden') {
-    title = 'Komm mit in den Kristallgarten'
-    note = 'Denk auch ans Spielen, Kuscheln und Schlafen. Tippe auf „Zum Kristallgarten“. Dort finden wir Glutsterne fürs Nest.'
+    title = 'Mir fehlt noch ein weicher Schlafplatz'
+    note = 'Hilfst du mir? Im Kristallgarten finden wir Glutsterne für ein Mooskissen.'
     if (page === 'garten') {
       title = 'Öffne das Glutfeld'
-      note = 'Tippe auf „Glutfeld spielen“. Für jeden Zug kannst du dir Zeit lassen.'
+      note = 'Im Glutfeld liegen die ersten Glutsterne. Gewinne eine Runde, dann können wir ein Mooskissen aufstellen.'
       target = $('first-round').closest('[hidden]') ? $('mission-list').querySelector('[data-mission="glutfeld"]') : $('first-round')
       action = ['Glutfeld spielen', () => begin(MISSIONS[0].id)]
     } else {
@@ -362,10 +364,43 @@ function renderGuide(focus = false) {
     title = current?.status === 'won' ? 'Deine ersten Glutsterne!' : 'So entstehen Punkte!'
     const resultNote = guideMatchPoints ? 'Dieser Tausch hat dir ' + guideMatchPoints + ' Punkte gebracht. ' : ''
     note = current?.status === 'won'
-      ? resultNote + 'Deine Glutsterne stehen oben im Spiel. In der Sammlung kannst du sie gegen Deko fürs Nest tauschen.'
-      : resultNote + 'Oben siehst du dein Ziel und die übrigen Züge. Schaffst du das Ziel, bekommst du Glutsterne für Nestdeko. Mit „Tipp“ findest du den nächsten Tausch.'
+      ? 'Geschafft! Die Glutsterne aus dem Glutfeld gehören dir.'
+      : resultNote + 'Oben siehst du das Ziel und deine Züge. Mit „Tipp“ findest du einen möglichen Tausch.'
     target = page === 'garten' && hasRound ? $('hint') : null
     action = ['Weiter', guideContinue]
+  } else if (guide.step === 'win') {
+    title = 'Sammle Glutsterne für unser Mooskissen'
+    note = 'Gewinne eine Runde im Glutfeld. Auch nach einer verlorenen Runde kannst du es sofort wieder versuchen.'
+    if (page === 'garten' && current?.missionId === MISSIONS[0].id) {
+      place = $('guide-board-slot')
+      if (hasRound) {
+        note = 'Tausche weiter, bis du das Punkteziel oben erreicht hast.'
+        other = ['Möglichen Tausch zeigen', () => showHint()]
+      } else {
+        action = ['Glutfeld erneut spielen', () => begin(MISSIONS[0].id)]
+      }
+    } else if (page === 'garten') {
+      action = ['Glutfeld spielen', () => begin(MISSIONS[0].id)]
+    } else {
+      action = ['Zum Glutfeld', guideRoute('garten/abenteuer/glutfeld')]
+    }
+  } else if (guide.step === 'furnish') {
+    const reward = rewardItemAction(state, FIRST_REWARD_ID)
+    title = 'Ein Platz zum Einkuscheln'
+    note = 'In der Sammlung kannst du das Mooskissen für dein Nest aufstellen.'
+    if (reward.action === 'buy' && !reward.affordable) {
+      note = 'Ein Mooskissen kostet ' + reward.cost + ' Glutsterne. Im Glutfeld kannst du weiter sammeln.'
+      action = page === 'garten' ? ['Glutfeld spielen', () => begin(MISSIONS[0].id)] : ['Zum Glutfeld', guideRoute('garten/abenteuer/glutfeld')]
+    } else if (page === 'sammlung') {
+      target = $('shop-' + FIRST_REWARD_ID).querySelector('[data-shop]')
+      action = [reward.action === 'buy' ? 'Mooskissen freischalten' : 'Mooskissen aufstellen', () => target.click()]
+    } else {
+      action = ['Zum Mooskissen', guideRoute('sammlung/mooskissen')]
+    }
+  } else if (guide.step === 'settle') {
+    title = 'Komm, wir probieren es aus'
+    note = 'Das Kissen liegt im Nest. Schau vorbei und sieh, wie ich mich hineinkuschle.'
+    action = ['Kissen im Nest ansehen', guideRoute('nest/mooskissen')]
   } else {
     title = 'Ein Buch für unsere Abenteuer'
     note = 'Pflege, Deko und Rätsel schalten Geschichten frei. Im Nestbuch entscheidest du, wie sie ausgehen.'
@@ -379,7 +414,7 @@ function renderGuide(focus = false) {
     }
   }
   if (card.parentElement !== place) place.prepend(card)
-  $('guide-status').textContent = name + ' begleitet dich · ' + stepNumber + ' / ' + GUIDE_STEPS.length
+  $('guide-status').textContent = name
   if ($('guide-title').textContent !== title || $('guide-note').textContent !== note) {
     $('guide-title').textContent = title
     $('guide-note').textContent = note
@@ -443,9 +478,9 @@ function renderNest() {
   $('xp-progress').setAttribute('aria-valuetext', level.maxed ? 'Höchste Stufe erreicht' : level.current + ' von ' + level.target + ' Erfahrung bis zur nächsten Stufe')
   const hasCushion = state.equipped.includes(FIRST_REWARD_ID)
   $('scene').classList.toggle('has-moss-cushion', hasCushion)
-  $('scene-moss-cushion').hidden = !hasCushion
   if (!hasCushion) $('scene').classList.remove('is-settling')
   $('scene').classList.toggle('is-resting', mood.key === 'resting')
+  $('scene').dataset.mood = mood.key
   if (!$('scene').dataset.action) $('pet-reaction').textContent = mood.key === 'resting' ? 'z z z' : ''
   $('scene-time').textContent = mood.label
   for (const [id, value] of Object.entries(state.needs)) {
@@ -460,11 +495,11 @@ function renderNest() {
     button.title = seconds ? 'Wieder bereit in ' + seconds + ' Sekunden' : CARE[id].label
   }
   renderBookLink()
-  const next = MISSIONS.find(m => isMissionUnlocked(state, m.id) && !state.progress.wins.includes(m.id))
-  const active = state.round?.status === 'playing' ? missionMap[state.round.missionId] : null
-  $('quest-kicker').textContent = active ? 'DEIN OFFENES SPIEL' : 'DEIN NÄCHSTES ABENTEUER'
-  $('quest-title').textContent = active ? active.label + ' fortsetzen' : !next ? 'Zurück in den Kristallgarten' : next === MISSIONS[0] ? 'Auf in den Kristallgarten!' : next.label + ' entdecken'
-  $('quest-detail').textContent = active ? 'Du hast noch ' + state.round.movesLeft + ' Züge für diese Runde.' : next === MISSIONS[0] ? 'Kombiniere Kristalle und sammle Glutsterne fürs Nest.' : next ? next.description : 'Spiele deine Lieblingsrunde noch einmal und sammle Glutsterne.'
+  const journey = nestJourney(state, mastery, lantern)
+  $('nest-garden-link').href = journey.href
+  $('quest-icon').innerHTML = icon(journey.icon)
+  $('quest-title').textContent = journey.title
+  $('quest-detail').textContent = journey.detail
   const stage = hatchTransition ? 'hatching' : state.egg.stage
   const hatching = stage === 'hatching'
   $('egg-title').textContent = stage === 'locked' ? 'Ein kleines Geheimnis' : hatching ? 'Die Schale bricht auf!' : stage === 'egg' ? 'Ein warmes Drachenei' : 'Hallo, Knöpfchen!'
@@ -496,12 +531,92 @@ function renderNest() {
   }
   comp.dataset.warmth = String(hatching ? 2 : state.egg.warmth)
   $('egg-icon').dataset.warmth = comp.dataset.warmth
-  if ($('den-decor').dataset.items !== state.equipped.join(',')) {
-    $('den-decor').dataset.items = state.equipped.join(',')
-    $('den-decor').innerHTML = state.equipped.filter(id => id !== FIRST_REWARD_ID).map(id => '<span class="den-item" data-decor="' + id + '">' + icon(shopIcon[id]) + '</span>').join('')
-  }
+  renderFurnishings()
 }
+function renderFurnishings() {
+  const scene = $('scene')
+  const decor = $('den-decor')
+  const equipped = NEST_FURNISHINGS.filter(item => state.equipped.includes(item.id))
+  const signature = equipped.map(item => item.id).join(',')
+  if (decor.dataset.items === signature) return
+  clearFurnishingReaction()
+  decor.dataset.items = signature
+  scene.dataset.furnishings = equipped.map(item => item.id).join(' ')
+  decor.replaceChildren(...equipped.map(item => {
+    const prop = element('div', '', 'den-prop')
+    prop.dataset.furnishing = item.id
+    prop.style.setProperty('--decor-x', item.x * 100 + '%')
+    prop.style.setProperty('--decor-y', item.y * 100 + '%')
+    prop.style.setProperty('--decor-width', item.width * 100 + '%')
+    const visual = element('span', '', 'den-visual')
+    visual.setAttribute('aria-hidden', 'true')
+    if (item.id === FIRST_REWARD_ID) visual.id = 'scene-moss-cushion'
+    const picture = element('img')
+    picture.src = './' + item.asset
+    picture.alt = ''
+    visual.append(picture)
+    const button = element('button', '', 'den-item')
+    button.type = 'button'
+    button.setAttribute('aria-label', item.action)
+    button.dataset.decor = item.id
+    prop.append(visual, button)
+    return prop
+  }))
+}
+
+function clearFurnishingReaction() {
+  clearTimeout(furnishingFeedbackTimer)
+  delete $('scene').dataset.decorReaction
+  delete $('scene-companion').dataset.decorReaction
+}
+
+function showFurnishingReaction(item) {
+  if (!item?.action || hatchTransition || !state.equipped.includes(item.id)) return
+  clearLanternReaction()
+  clearFindReaction()
+  clearFurnishingReaction()
+  clearTimeout(reactionTimer)
+  clearTimeout(companionFeedbackTimer)
+  const scene = $('scene')
+  const baby = $('scene-companion')
+  delete scene.dataset.action
+  delete baby.dataset.reaction
+  const resting = scene.classList.contains('is-resting') || scene.classList.contains('is-settling')
+  $('pet-reaction').textContent = scene.classList.contains('is-resting') ? 'z z z' : ''
+  void scene.offsetWidth
+  scene.dataset.decorReaction = item.id
+  if (item.id === FIRST_REWARD_ID) {
+    if (!resting) scene.classList.add('is-settling')
+    if (guide.step === 'settle') {
+      setGuide({ type:'saw-cushion' })
+      renderGuide()
+    }
+  }
+  let message = resting ? state.name + ' schlummert im Nest.' : item.adult.replace('{name}', () => state.name)
+  if (state.egg.stage === 'hatched') {
+    baby.dataset.decorReaction = item.id
+    message += ' ' + item.baby
+  }
+  furnishingFeedbackTimer = setTimeout(clearFurnishingReaction, 2300)
+  tell(message)
+}
+
+function showFurnishingDestination(id) {
+  const item = nestFurnishing(id)
+  const prop = item && $('den-decor').querySelector('[data-decor="' + item.id + '"]')
+  if (!prop) return
+  prop.focus({ preventScroll:true })
+  $('scene').scrollIntoView({ block:'nearest' })
+  showFurnishingReaction(item)
+}
+
+$('den-decor').addEventListener('click', event => {
+  const target = event.target.closest('[data-decor]')
+  if (target) showFurnishingReaction(nestFurnishing(target.dataset.decor))
+})
+
 function react(action) {
+  clearFurnishingReaction()
   clearTimeout(reactionTimer)
   delete $('scene').dataset.action
   void $('pet').offsetWidth
@@ -572,6 +687,7 @@ function clearLanternReaction() {
 function showLanternReaction() {
   const light = selectedLanternLight(lantern)
   if (!light || hatchTransition) return
+  clearFurnishingReaction()
   clearLanternReaction()
   clearFindReaction()
   clearTimeout(reactionTimer)
@@ -715,6 +831,7 @@ function clearFindReaction() {
 function showFindReaction() {
   const item = displayedFind(finds)
   if (!item || hatchTransition) return
+  clearFurnishingReaction()
   clearLanternReaction()
   clearFindReaction()
   const baby = $('scene-companion')
@@ -834,10 +951,11 @@ function renderShop() {
     const cost = locked && !owned ? 'Ab Stufe ' + item.level : owned ? equipped ? 'Im Nest' : 'In deiner Sammlung' : item.cost + ' Glutsterne'
     const reward = rewardItemAction(state, item.id)
     const action = reward?.action === 'view' ? 'Verstauen' : reward?.label ?? (owned ? equipped ? 'Verstauen' : 'Aufstellen' : 'Freischalten')
-    const art = reward ? '<img src="./assets/moss-cushion.webp" alt="">' : icon(shopIcon[item.id])
-    const view = reward?.action === 'view' ? '<a class="primary shop-view" href="#nest/mooskissen">Im Nest ansehen</a>' : ''
+    const art = '<img src="./' + nestFurnishing(item.id).asset + '" alt="" loading="lazy">'
+    const destination = item.id === FIRST_REWARD_ID ? '#nest/mooskissen' : '#nest/einrichtung/' + item.id
+    const view = equipped ? '<a class="small-button shop-view" href="' + destination + '" aria-label="' + item.label + ' im Nest ansehen">Im Nest ansehen</a>' : ''
     const spotlight = item.id === FIRST_REWARD_ID && location.hash === '#sammlung/mooskissen' ? ' reward-spotlight' : ''
-    return '<article class="panel shop-card' + spotlight + '" id="shop-' + item.id + '"><div class="shop-art">' + art + '</div><h2>' + item.label + '</h2><p>' + item.description + '</p><div class="shop-foot"><span>' + icon(owned ? 'check' : locked ? 'lock' : 'sparkles') + cost + '</span><button type="button" class="small-button" data-shop="' + item.id + '" aria-label="' + item.label + ': ' + action + '"' + (locked && !owned ? ' disabled' : '') + '>' + action + '</button>' + view + '</div></article>'
+    return '<article class="panel shop-card' + spotlight + '" id="shop-' + item.id + '"><div class="shop-art">' + art + '</div><h2>' + item.label + '</h2><span class="shop-slot">' + slotLabel[item.slot] + '</span><p>' + item.description + '</p><div class="shop-foot"><span>' + icon(owned ? 'check' : locked ? 'lock' : 'sparkles') + cost + '</span><button type="button" class="small-button" data-shop="' + item.id + '" aria-label="' + item.label + ': ' + action + '"' + (locked && !owned ? ' disabled' : '') + '>' + action + '</button>' + view + '</div></article>'
   }).join('')
   if (active) $('shop').querySelector('[data-shop="' + active + '"]')?.focus({ preventScroll: true })
 }
@@ -864,15 +982,25 @@ function renderMasteryBook() {
   }))
 }
 
+const gardenRewards = {
+  glutfeld: 'Glutsterne für dein erstes Mooskissen',
+  mondbach: 'Bachkiesel fürs Nest',
+  sternenhoehle: 'Ein Fund, den du im Nest wärmen kannst',
+  gluehlichtung: 'Glutfeder fürs Nest',
+}
+const gardenIcons = { glutfeld:'flame', mondbach:'dew', sternenhoehle:'star', gluehlichtung:'sparkles' }
+
 function renderMissions() {
   renderMasteryBook()
   const focusId = document.activeElement?.dataset.mission
   $('mission-list').innerHTML = MISSIONS.map((mission, index) => {
     const unlocked = isMissionUnlocked(state, mission.id)
     const won = state.progress.wins.includes(mission.id)
+    const record = state.progress.records?.[mission.id]
+    const gardenDetail = record ? 'Bestwert: ' + record.score + ' Punkte' : won ? 'Noch kein persönlicher Bestwert' : gardenRewards[mission.id]
     const medalGoal = won && MASTERY_GOALS[mission.id]
     const medalNote = medalGoal ? ' · ' + (mastery.earned.includes(mission.id) ? 'Abzeichen verdient' : 'Sternabzeichen möglich') : ''
-    return '<button type="button" class="mission" data-mission="' + mission.id + '" ' + (unlocked ? '' : 'disabled ') + (state.round?.missionId === mission.id ? 'aria-current="true" ' : '') + '><span class="mission-index">' + (unlocked ? '0' + (index + 1) : icon('lock')) + '</span><span><strong>' + mission.label + '</strong><small>' + (unlocked ? describeGoal(mission) : mission.id === 'gluehlichtung' ? 'Nachdem Knöpfchen schlüpft' : 'Nach ' + MISSIONS[index - 1].label) + medalNote + '</small></span><span class="mission-end">' + icon(won ? 'check' : unlocked ? 'arrow' : 'lock') + '</span></button>'
+    return '<button type="button" class="mission" data-mission="' + mission.id + '" ' + (unlocked ? '' : 'disabled ') + (state.round?.missionId === mission.id ? 'aria-current="true" ' : '') + '><span class="mission-index">' + (unlocked ? icon(gardenIcons[mission.id]) : icon('lock')) + '</span><span><strong>' + mission.label + '</strong><small>' + (unlocked ? describeGoal(mission) : mission.id === 'gluehlichtung' ? 'Nachdem Knöpfchen schlüpft' : 'Nach ' + MISSIONS[index - 1].label) + medalNote + '</small>' + (unlocked ? '<small class="mission-reward">' + gardenDetail + '</small>' : '') + '</span><span class="mission-end">' + icon(won ? 'check' : unlocked ? 'arrow' : 'lock') + '</span></button>'
   }).join('')
   if (focusId) $('mission-list').querySelector('[data-mission="' + focusId + '"]')?.focus({ preventScroll: true })
 }
@@ -916,7 +1044,7 @@ function drawBoard(values, specials = {}, clearing = [], dropping = false) {
       tile.dataset.gem = id
       if (special) tile.dataset.special = special
       else delete tile.dataset.special
-      tile.innerHTML = icon(tileIcon[id]) + (special ? '<span class="tile-special" aria-hidden="true">' + (special === 'burst' ? '✦' : special === 'row' ? '↔' : '↕') + '</span>' : '')
+      tile.innerHTML = '<span class="tile-crystal" aria-hidden="true">' + icon(tileIcon[id]) + '</span>' + (special ? '<span class="tile-special" aria-hidden="true">' + (special === 'burst' ? '✦' : special === 'row' ? '↔' : '↕') + '</span>' : '')
       const specialLabel = special ? ', ' + SPECIALS[special].label + (special === 'row' ? ' waagerecht' : special === 'column' ? ' senkrecht' : '') : ''
       tile.setAttribute('aria-label', tileMap[id].label + specialLabel + ', Reihe ' + (Math.floor(i / BOARD_SIZE) + 1) + ', Spalte ' + (i % BOARD_SIZE + 1))
     }
@@ -929,6 +1057,7 @@ function renderRound(reward = null) {
   const round = state.round
   $('board-empty').hidden = !!round
   $('round').hidden = !round
+  $('round').dataset.mission = round?.missionId ?? ''
   $('round').parentElement.setAttribute('aria-labelledby', round ? 'active-round-title' : 'round-title')
   if (!round) return
   const mission = missionMap[round.missionId]
@@ -938,7 +1067,7 @@ function renderRound(reward = null) {
   if (mission.targetScore) targets.unshift(['sparkles', '', round.score, mission.targetScore, 'Punkte'])
   if (mission.targetSpecials) targets.push(['ray', '', round.activatedSpecials ?? 0, mission.targetSpecials, 'Gezündet'])
   $('round-goals').innerHTML = targets.map(([symbol,id,value,goal,label]) =>
-    '<span class="goal" data-gem="' + id + '">' + icon(value >= goal ? 'check' : symbol) + label + ': <strong>' + Math.min(value, goal) + ' / ' + goal + '</strong></span>').join('')
+    '<span class="goal" data-gem="' + id + '" data-complete="' + String(value >= goal) + '">' + icon(value >= goal ? 'check' : symbol) + label + ' <strong>' + Math.min(value, goal) + ' / ' + goal + '</strong><progress max="' + goal + '" value="' + Math.min(value, goal) + '" aria-label="' + label + '"></progress></span>').join('')
   drawBoard(round.board, round.specials)
   const masteryGoal = masteryStatus(mastery, state)
   $('mastery-current').hidden = !masteryGoal
@@ -950,6 +1079,8 @@ function renderRound(reward = null) {
   $('star-goal-current').hidden = !lightGoal
   $('star-goal-current').textContent = lightGoal ? lightGoal.light.title + ' · ' + lightGoal.goal.unit + ': ' + lightGoal.progress + ' von ' + lightGoal.target + '. Gewinne die Runde.' : ''
   const done = round.status !== 'playing'
+  $('board').classList.toggle('board-done', done)
+  $('round-footer').hidden = done
   $('hint').disabled = done || playingAnimation
   $('round-result').hidden = !done
   if (done) {
@@ -959,23 +1090,27 @@ function renderRound(reward = null) {
     const text = !won ? 'Zwei Glutsterne nimmst du trotzdem mit.' : reward?.eggFound ? 'Du hast ein Drachenei gefunden! Im Nest kannst du es wärmen.' : reward ? 'Du hast ' + reward.glow + ' Glutsterne gesammelt.' : 'Dein Fortschritt und deine Belohnung sind gespeichert.'
     const find = won && FIND_ITEMS.find(item => item.missionId === mission.id && finds.owned.includes(item.id))
     const findLink = find ? '<div class="find-win"><img src="./' + find.asset + '" alt=""><div><strong>' + find.name + '</strong><a class="small-button" href="' + (finds.displayed === find.id ? '#nest/fund' : '#sammlung/funde') + '">' + (finds.displayed === find.id ? 'Fund im Nest ansehen' : 'Zu den Fundstücken') + '</a></div></div>' : ''
+    const score = '<p class="round-score"><strong>' + round.score + ' Punkte</strong>' + (reward?.personalBest && !reward.firstWin ? ' Persönlicher Bestwert!' : '') + '</p>'
     const medal = reward?.medal ? '<p class="medal-win">✦ Sternabzeichen: ' + reward.medal.title + '</p>' : ''
     const newLight = reward?.light
     const showLanternLink = won && lantern.unlocked && (reward?.lanternUnlocked || newLight || !reward)
     const lanternLink = showLanternLink ? '<div class="star-reward"><strong>' + (newLight ? 'Neues Licht: ' + newLight.title : 'Sternenlaterne im Nest') + '</strong><a class="small-button" href="#nest/sterne' + (newLight ? '/' + newLight.id : '') + '">' + (newLight ? 'Neues Licht im Nest einschalten' : 'Zur Sternenlaterne') + '</a></div>' : ''
     const furnishing = firstRewardAction(state)
     const furnishingLink = furnishing ? '<a class="primary" href="#sammlung/mooskissen">' + furnishing.label + '</a>' : ''
-    $('round-result').innerHTML = '<strong>' + (won ? 'Geschafft!' : 'Die Runde ist zu Ende.') + '</strong><p>' + text + '</p>' + medal + lanternLink + findLink + furnishingLink + (next ? '<button class="' + (furnishing ? 'small-button' : 'primary') + '" type="button" data-next="' + next.id + '">' + next.label + ' spielen</button>' : won && state.egg.stage === 'egg' ? '<a class="primary" href="#nest">Zum Drachenei</a>' : '') + '<button class="small-button" type="button" data-retry="' + mission.id + '">Noch einmal</button>'
+    $('round-result').innerHTML = '<strong>' + (won ? 'Geschafft!' : 'Die Runde ist zu Ende.') + '</strong><p>' + text + '</p>' + score + medal + lanternLink + findLink + furnishingLink + (next ? '<button class="' + (furnishing ? 'small-button' : 'primary') + '" type="button" data-next="' + next.id + '">' + next.label + ' spielen</button>' : won && state.egg.stage === 'egg' ? '<a class="primary" href="#nest/ei">Zum Drachenei</a>' : '') + '<button class="small-button" type="button" data-retry="' + mission.id + '">Noch einmal</button>'
   }
 }
 function renderGarden() { renderMissions(); if (!playingAnimation) renderRound() }
 function route(focusHeading = false) {
   const hash = location.hash.slice(1)
   const cushionRoute = hash === 'sammlung/mooskissen' || hash === 'nest/mooskissen'
+  const furnitureRoute = hash.match(/^nest\/einrichtung\/([a-z-]+)$/)
   const findRoute = hash === 'sammlung/funde' || hash === 'nest/fund'
   const lightRoute = hash.match(/^nest\/sterne(?:\/([a-z]+))?$/)
   const starRoute = lightRoute || hash === 'garten/lichtsuche'
-  const requested = cushionRoute || findRoute || starRoute ? hash.split('/')[0] : hash
+  const missionRoute = hash.match(/^garten\/abenteuer\/([a-z]+)$/)
+  const journeyRoute = missionRoute || ['garten/fortsetzen', 'garten/abzeichen', 'nest/ei'].includes(hash)
+  const requested = cushionRoute || furnitureRoute || findRoute || starRoute || journeyRoute ? hash.split('/')[0] : hash
   page = pages.includes(requested) ? requested : 'nest'
   for (const id of pages) {
     $('view-' + id).hidden = id !== page
@@ -985,6 +1120,7 @@ function route(focusHeading = false) {
   }
   if (page !== 'nest') {
     endHatch(false)
+    clearFurnishingReaction()
     clearLanternReaction()
     clearFindReaction()
     $('scene').classList.remove('is-settling')
@@ -997,10 +1133,26 @@ function route(focusHeading = false) {
     $('view-' + page).querySelector('h1').focus({ preventScroll: true })
     window.scrollTo({ top: 0, behavior: 'instant' })
   }
-  renderGuide(focusHeading && !cushionRoute && !findRoute && !starRoute)
+  renderGuide(focusHeading && !furnitureRoute && !cushionRoute && !findRoute && !starRoute && !journeyRoute)
+  if (journeyRoute) showJourneyDestination(hash, missionRoute?.[1])
   if (cushionRoute) showCushionDestination()
+  if (furnitureRoute && focusHeading) showFurnishingDestination(furnitureRoute[1])
   if (findRoute && focusHeading) showFindDestination()
   if (starRoute && focusHeading) showStarDestination(lightRoute?.[1])
+}
+
+function showJourneyDestination(hash, mission) {
+  let target
+  if (mission) target = $('mission-list').querySelector('[data-mission="' + mission + '"]')
+  else if (hash === 'garten/fortsetzen' && state.round?.status === 'playing') target = $('active-round-title')
+  else if (hash === 'nest/ei' && state.egg.stage === 'egg') target = $('scene-egg-button')
+  else if (hash === 'garten/abzeichen' && !$('mastery-guide').hidden) {
+    $('mastery-guide').open = true
+    target = $('mastery-summary')
+  }
+  if (!target || target.disabled) return
+  target.focus({ preventScroll:true })
+  target.scrollIntoView({ block:'nearest' })
 }
 
 function showCushionDestination() {
@@ -1012,13 +1164,7 @@ function showCushionDestination() {
     shopCard.scrollIntoView({ block:'nearest' })
     return
   }
-  if (!state.equipped.includes(FIRST_REWARD_ID)) return
-  const scene = $('scene')
-  scene.tabIndex = -1
-  scene.focus({ preventScroll:true })
-  scene.scrollIntoView({ block:'nearest' })
-  scene.classList.add('is-settling')
-  tell(state.name + ' kuschelt sich aufs Mooskissen.')
+  showFurnishingDestination(FIRST_REWARD_ID)
 }
 function confirm(title, copy, action) {
   if ($('confirm-dialog').open) return Promise.resolve(false)
@@ -1071,6 +1217,24 @@ async function begin(id, replace = false) {
   renderGuide(true)
 }
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+function animateSwap(from, to, accepted) {
+  if (settings.quiet || reduceMotion.matches || typeof tiles[from].animate !== 'function') return false
+  for (const [start, end] of [[from, to], [to, from]]) {
+    const tile = tiles[start]
+    const a = tile.getBoundingClientRect()
+    const b = tiles[end].getBoundingClientRect()
+    const x = b.left - a.left
+    const y = b.top - a.top
+    const frames = [{ transform: 'none' }, { transform: 'translate(' + x + 'px,' + y + 'px)' }]
+    if (!accepted) frames.push(frames[0])
+    tile.querySelector('.tile-crystal')?.animate(frames, { duration: accepted ? 105 : 210, easing: 'ease-in-out' })
+  }
+  return true
+}
+function flashUnmatchedPair(from, to) {
+  if (animateSwap(from, to, false)) return
+  $('board-help').textContent = 'Diese Kombination passt noch nicht. Suche drei gleiche Kristalle in einer Reihe.'
+}
 async function chooseTile(index) {
   if (playingAnimation || state.round?.status !== 'playing') return
   focused = index
@@ -1093,6 +1257,7 @@ async function chooseTile(index) {
   if (!result.ok) {
     updateBoardInteraction()
     renderGuide()
+    flashUnmatchedPair(from, index)
     tell(result.message)
     return
   }
@@ -1111,12 +1276,13 @@ async function chooseTile(index) {
   const previousGuideStep = guide.step
   setGuide({ type:'move-committed', from, to:index })
   if (previousGuideStep === 'pair' && guide.step === 'reward') guideMatchPoints = result.summary.score
-  if (guide.step === 'pair' && state.round.status !== 'playing') setGuide({ type:'pair-set', pair:null })
+  if (state.progress.wins.includes(MISSIONS[0].id)) setGuide({ type:'won-first' })
   const cleared = result.frames.flatMap(frame => frame.cleared.map(i => frame.before[i]))
   const newStory = storyEvent({ type:'match', cleared, chains:result.summary.chains, activatedSpecials:result.summary.activatedSpecials })
   persist()
   wallet()
-  if (animate) for (const frame of result.frames.slice(0, 3)) {
+  if (animate && animateSwap(from, index, true)) await wait(105)
+  if (animate && page === 'garten') for (const frame of result.frames.slice(0, 3)) {
     drawBoard(frame.before, frame.beforeSpecials, frame.cleared)
     await wait(120)
     drawBoard(frame.after, frame.afterSpecials, [], true)
@@ -1141,12 +1307,13 @@ async function chooseTile(index) {
     if (state.round.status !== 'playing') {
       $('round-result').tabIndex = -1
       $('round-result').focus({ preventScroll:true })
+      $('round-result').scrollIntoView({ block:'nearest', behavior:'instant' })
     }
   }
   if (page === 'nest') renderNest()
   if (page === 'nestbuch') renderBook()
   if (page === 'sammlung') renderShop()
-  renderGuide(previousGuideStep === 'pair' && guide.step === 'reward')
+  renderGuide(previousGuideStep !== guide.step)
   let message = result.message
   if (discovery.discovered) message += ' Gefunden: ' + discovery.discovered.name + '.'
   if (medal.earned) message += ' Sternabzeichen: ' + medal.earned.title + '.'
@@ -1213,7 +1380,11 @@ $('shop').addEventListener('click', event => {
   state = result.state
   const newStory = result.ok && state.equipped.includes(id) && storyEvent({ type:'decorate', id })
   persist(); wallet(); renderShop()
-  if (result.ok && id === FIRST_REWARD_ID && state.equipped.includes(id)) {
+  if (result.ok && state.equipped.includes(id)) {
+    if (id === FIRST_REWARD_ID) {
+      setGuide({ type:'furnished' })
+      renderGuide()
+    }
     $('shop-' + id).querySelector('.shop-view').focus({ preventScroll:true })
   }
   tell(storyMessage(result.message, newStory))
@@ -1236,6 +1407,7 @@ function interactWithEgg(event) {
   const inScene = event.currentTarget === $('scene-egg-button')
   if (state.egg.stage === 'hatched') {
     const baby = $('scene-companion')
+    clearFurnishingReaction()
     clearFindReaction()
     clearLanternReaction()
     const reaction = companionReaction(state, companionPlays++)
@@ -1331,6 +1503,7 @@ $('save-file').addEventListener('change', async () => {
   } catch { $('settings-status').textContent = 'Diese Datei ist keine gültige Glutnest-Sicherung.'; return }
   if (playingAnimation || !await confirm('Spielstand einspielen?', 'Die Sicherung ersetzt den Spielstand in diesem Browser.', 'Einspielen')) return
   endHatch(false)
+  clearFurnishingReaction()
   clearFindReaction()
   clearLanternReaction()
   readProgress(data.state)

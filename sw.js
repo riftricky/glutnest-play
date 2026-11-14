@@ -1,24 +1,31 @@
 const scope = new URL(self.registration.scope);
 const cachePrefix = `glutnest:${scope.pathname}:`;
-const cacheName = `${cachePrefix}v9`;
+const cacheName = `${cachePrefix}v10`;
 const appHome = new URL('./index.html', scope);
 const shellFiles = [
   './index.html',
-  './style.css?v=sternennest',
-  './app.mjs?v=sternennest',
+  './style.css?v=waldnest',
+  './app.mjs?v=waldnest',
   './game.mjs',
+  './game.mjs?v=waldnest',
   './stories.mjs?v=lebendiges-nest',
   './reward.mjs',
   './companion.mjs',
   './finds.mjs',
-  './postcard.mjs?v=sternennest',
+  './postcard.mjs?v=waldnest',
+  './decor.mjs',
   './lantern.mjs',
   './assets/star-lantern.webp',
   './mastery.mjs',
   './assets/find-river-pebble.webp',
   './assets/find-ember-feather.webp',
   './assets/moss-cushion.webp',
-  './guide.mjs',
+  './assets/firefly-lantern.webp',
+  './assets/moon-flowers.webp',
+  './assets/star-mobile.webp',
+  './assets/cloud-blanket.webp',
+  './assets/comet-rug.webp',
+  './guide.mjs?v=waldnest',
   './assets/nestbuch.webp',
   './manifest.webmanifest',
   './assets/nest.webp',
@@ -36,9 +43,10 @@ const shellPaths = new Set(shellFiles.map((path) => new URL(path, scope).pathnam
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(cacheName).then((cache) => cache.addAll(
-      shellFiles.map((path) => new Request(new URL(path, scope), { cache: 'reload' })),
-    )),
+    caches.open(cacheName).then(async (cache) => {
+      await cache.addAll(shellFiles.map((path) => new Request(new URL(path, scope), { cache: 'reload' })));
+      await self.skipWaiting();
+    }),
   );
 });
 
